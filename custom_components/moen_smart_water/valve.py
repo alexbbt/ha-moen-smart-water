@@ -241,11 +241,13 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             _LOGGER.info("Closing valve for device %s", self._device_id)
 
             # Call the API to stop water flow
-            _LOGGER.info("Calling stop_water_flow API for device %s", self._device_id)
+            _LOGGER.error("VALVE CLOSE: Calling stop_water_flow API for device %s", self._device_id)
+            print(f"VALVE CLOSE: Calling stop_water_flow API for device {self._device_id}")
             result = await self.hass.async_add_executor_job(
                 self.coordinator.api.stop_water_flow, self._device_id
             )
-            _LOGGER.info("Stop water flow API result: %s", result)
+            _LOGGER.error("VALVE CLOSE: Stop water flow API result: %s", result)
+            print(f"VALVE CLOSE: Stop water flow API result: {result}")
 
             # Immediately update valve state to closed and set position to 0
             self._attr_is_closed = True
@@ -272,9 +274,15 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
     async def async_toggle(self) -> None:
         """Toggle the valve open/closed."""
+        _LOGGER.error("VALVE TOGGLE: Called for device %s, current state: closed=%s", self._device_id, self._attr_is_closed)
+        print(f"VALVE TOGGLE: Called for device {self._device_id}, current state: closed={self._attr_is_closed}")
         if self._attr_is_closed:
+            _LOGGER.error("VALVE TOGGLE: Opening valve")
+            print("VALVE TOGGLE: Opening valve")
             await self.async_open_valve()
         else:
+            _LOGGER.error("VALVE TOGGLE: Closing valve")
+            print("VALVE TOGGLE: Closing valve")
             await self.async_close_valve()
 
     async def async_set_valve_position(self, position: float) -> None:
