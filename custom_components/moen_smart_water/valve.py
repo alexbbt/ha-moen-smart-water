@@ -123,7 +123,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             flow_rate = state.get("flowRate")
 
             # Debug: Log the actual API data
-            _LOGGER.error("VALVE STATE UPDATE: device_state=%s, flow_rate=%s, manual_close=%s, manual_open=%s", 
+            _LOGGER.error("VALVE STATE UPDATE: device_state=%s, flow_rate=%s, manual_close=%s, manual_open=%s",
                          device_state, flow_rate, self._manual_close_requested, self._manual_open_requested)
 
             # Determine if valve is open based on device state and flow rate
@@ -229,7 +229,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_is_opening = False
             self._attr_is_closing = False
             self._manual_open_requested = True
-            
+
             # Update extra state attributes to reflect open state
             self._attr_extra_state_attributes.update(
                 {
@@ -240,7 +240,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     "flow_rate": flow_rate,
                 }
             )
-            
+
             # Update Home Assistant state immediately
             self.async_write_ha_state()
 
@@ -270,7 +270,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_is_closing = False
             self._attr_valve_position = 0
             self._manual_close_requested = True
-            
+
             # Update extra state attributes to reflect closed state
             self._attr_extra_state_attributes.update(
                 {
@@ -281,7 +281,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     "flow_rate": 0,
                 }
             )
-            
+
             # Update Home Assistant state immediately
             self.async_write_ha_state()
 
@@ -330,6 +330,18 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     self._attr_is_closed = True
                     self._attr_is_opening = False
                     self._attr_is_closing = False
+                    
+                    # Update extra state attributes to reflect closed state
+                    self._attr_extra_state_attributes.update(
+                        {
+                            "faucet_state": "idle",
+                            "preset_mode": self._attr_preset_mode,
+                            "is_valve_open": False,
+                            "temperature": self._attr_temperature,
+                            "flow_rate": 0,
+                        }
+                    )
+                    
                     # Update Home Assistant state immediately
                     self.async_write_ha_state()
                     _LOGGER.info(
@@ -357,6 +369,20 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self._attr_is_closed = False
                 self._attr_is_opening = False
                 self._attr_is_closing = False
+                
+                # Update extra state attributes to reflect open state
+                self._attr_extra_state_attributes.update(
+                    {
+                        "faucet_state": "running",
+                        "preset_mode": self._attr_preset_mode,
+                        "is_valve_open": True,
+                        "temperature": self._attr_temperature,
+                        "flow_rate": int(position),
+                    }
+                )
+                
+                # Update Home Assistant state immediately
+                self.async_write_ha_state()
 
                 # Trigger coordinator update to refresh state
                 await self.coordinator.async_request_refresh()
