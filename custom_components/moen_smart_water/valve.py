@@ -122,14 +122,20 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             device_state = state.get("state", "idle")
             flow_rate = state.get("flowRate")
 
+            # Debug: Log the actual API data
+            _LOGGER.error("VALVE STATE UPDATE: device_state=%s, flow_rate=%s, manual_close=%s, manual_open=%s", 
+                         device_state, flow_rate, self._manual_close_requested, self._manual_open_requested)
+
             # Determine if valve is open based on device state and flow rate
             # If we manually changed the valve state, respect that until API confirms
             if self._manual_close_requested:
                 is_valve_open = False
                 self._manual_close_requested = False  # Reset flag after one update
+                _LOGGER.error("VALVE STATE: Using manual close flag, setting closed")
             elif self._manual_open_requested:
                 is_valve_open = True
                 self._manual_open_requested = False  # Reset flag after one update
+                _LOGGER.error("VALVE STATE: Using manual open flag, setting open")
             else:
                 # Valve is open if:
                 # 1. Device state is "running", OR
@@ -137,6 +143,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 is_valve_open = device_state == "running" or (
                     flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
                 )
+                _LOGGER.error("VALVE STATE: Using API data, is_valve_open=%s", is_valve_open)
 
             if is_valve_open:
                 self._attr_is_closed = False
