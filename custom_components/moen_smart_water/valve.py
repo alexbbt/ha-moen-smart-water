@@ -118,75 +118,79 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         shadow = self.coordinator.get_device_shadow(self._device_id)
         if shadow:
             state = shadow.get("state", {}).get("reported", {})
-
-            # Update valve state based on device state and flow rate
-            device_state = state.get("state", "idle")
-            flow_rate = state.get("flowRate")
-
-            # Debug: Log the actual API data
-            _LOGGER.error("VALVE STATE UPDATE: device_state=%s, flow_rate=%s, manual_close=%s, manual_open=%s",
-                         device_state, flow_rate, self._manual_close_requested, self._manual_open_requested)
-
-            # Determine if valve is open based on device state and flow rate
-            # If we manually changed the valve state, respect that until API confirms
-            if self._manual_close_requested:
-                is_valve_open = False
-                self._manual_close_requested = False  # Reset flag after one update
-                _LOGGER.error("VALVE STATE: Using manual close flag, setting closed")
-            elif self._manual_open_requested:
-                is_valve_open = True
-                self._manual_open_requested = False  # Reset flag after one update
-                _LOGGER.error("VALVE STATE: Using manual open flag, setting open")
-            else:
-                # Valve is open if:
-                # 1. Device state is "running", OR
-                # 2. We have a valid flow rate > 0
-                is_valve_open = device_state == "running" or (
-                    flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
-                )
-                _LOGGER.error("VALVE STATE: Using API data, is_valve_open=%s", is_valve_open)
-
-            if is_valve_open:
-                self._attr_is_closed = False
-                self._attr_is_opening = False
-                self._attr_is_closing = False
-                self._attr_state = "open"
-            else:  # Valve is closed
-                self._attr_is_closed = True
-                self._attr_is_opening = False
-                self._attr_is_closing = False
-                self._attr_state = "closed"
-
-            # Update valve position (flow rate)
-            if is_valve_open:
-                if flow_rate is not None and flow_rate != "unknown":
-                    # Get flow rate from API and map it to valve position (0-100%)
-                    self._attr_valve_position = int(flow_rate)
-                elif device_state == "running":
-                    # If device is running but no flow rate data, assume 100%
-                    self._attr_valve_position = 100
-                # If valve is open but no flow rate data, keep current position
-            elif not is_valve_open:
-                # When valve is closed, keep the last known position for next open
-                # Don't reset to 0 unless we explicitly want to close it
-                pass
-
-            # Update temperature
-            self._attr_temperature = state.get("temperature", 20.0)
-
-            # Update extra state attributes
-            self._attr_extra_state_attributes.update(
-                {
-                    "valve_state": self._attr_state,
-                    "faucet_state": device_state,
-                    "preset_mode": self._attr_preset_mode,
-                    "is_valve_open": is_valve_open,
-                    "temperature": self._attr_temperature,
-                    "flow_rate": self._attr_valve_position,
-                }
-            )
+            self._update_valve_state_from_data(state, "coordinator")
 
         self.async_write_ha_state()
+
+    def _update_valve_state_from_data(self, state: dict, source: str = "coordinator") -> None:
+        """Update valve state and attributes from API data. Shared by coordinator and manual updates."""
+        device_state = state.get("state", "idle")
+        flow_rate = state.get("flowRate")
+        temperature = state.get("temperature", 20.0)
+
+        _LOGGER.error("%s UPDATE: device_state=%s, flow_rate=%s", source.upper(), device_state, flow_rate)
+
+        # Determine if valve is open based on device state and flow rate
+        # If we manually changed the valve state, respect that until API confirms
+        if source == "coordinator" and self._manual_close_requested:
+            is_valve_open = False
+            self._manual_close_requested = False  # Reset flag after one update
+            _LOGGER.error("VALVE STATE: Using manual close flag, setting closed")
+        elif source == "coordinator" and self._manual_open_requested:
+            is_valve_open = True
+            self._manual_open_requested = False  # Reset flag after one update
+            _LOGGER.error("VALVE STATE: Using manual open flag, setting open")
+        else:
+            # Valve is open if:
+            # 1. Device state is "running", OR
+            # 2. We have a valid flow rate > 0
+            is_valve_open = device_state == "running" or (
+                flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
+            )
+            _LOGGER.error("VALVE STATE: Using API data, is_valve_open=%s", is_valve_open)
+
+        # Update valve state attributes
+        if is_valve_open:
+            self._attr_is_closed = False
+            self._attr_is_opening = False
+            self._attr_is_closing = False
+            self._attr_state = "open"
+        else:
+            self._attr_is_closed = True
+            self._attr_is_opening = False
+            self._attr_is_closing = False
+            self._attr_state = "closed"
+
+        # Update valve position (flow rate)
+        if is_valve_open:
+            if flow_rate is not None and flow_rate != "unknown":
+                # Get flow rate from API and map it to valve position (0-100%)
+                self._attr_valve_position = int(flow_rate)
+            elif device_state == "running":
+                # If device is running but no flow rate data, assume 100%
+                self._attr_valve_position = 100
+            # If valve is open but no flow rate data, keep current position
+        elif not is_valve_open and source == "manual":
+            # For manual updates, don't reset position when closing
+            pass
+
+        # Update temperature
+        self._attr_temperature = temperature
+
+        # Update extra state attributes
+        self._attr_extra_state_attributes.update(
+            {
+                "valve_state": self._attr_state,
+                "faucet_state": device_state,
+                "preset_mode": self._attr_preset_mode,
+                "is_valve_open": is_valve_open,
+                "temperature": temperature,
+                "flow_rate": self._attr_valve_position,
+                "api_flow_rate": flow_rate,
+            }
+        )
+
+        _LOGGER.error("%s UPDATE: Updated state to %s, position=%s", source.upper(), self._attr_state, self._attr_valve_position)
 
     async def _manual_update_from_api(self) -> None:
         """Manually update valve state with fresh API data, bypassing coordinator cache."""
@@ -196,62 +200,15 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             shadow = await self.hass.async_add_executor_job(
                 self.coordinator.api.get_device_shadow, self._device_id
             )
-            
+
             if shadow:
                 state = shadow.get("state", {}).get("reported", {})
-                device_state = state.get("state", "idle")
-                flow_rate = state.get("flowRate")
-                temperature = state.get("temperature", 20.0)
-                
-                _LOGGER.error("MANUAL UPDATE: device_state=%s, flow_rate=%s", device_state, flow_rate)
-                
-                # Determine if valve is open based on fresh API data
-                is_valve_open = device_state == "running" or (
-                    flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
-                )
-                
-                # Update valve state attributes
-                if is_valve_open:
-                    self._attr_is_closed = False
-                    self._attr_is_opening = False
-                    self._attr_is_closing = False
-                    self._attr_state = "open"
-                else:
-                    self._attr_is_closed = True
-                    self._attr_is_opening = False
-                    self._attr_is_closing = False
-                    self._attr_state = "closed"
-                
-                # Update valve position
-                if is_valve_open:
-                    if flow_rate is not None and flow_rate != "unknown":
-                        self._attr_valve_position = int(flow_rate)
-                    else:
-                        self._attr_valve_position = 100
-                
-                # Update temperature
-                self._attr_temperature = temperature
-                
-                # Update extra state attributes
-                self._attr_extra_state_attributes.update(
-                    {
-                        "valve_state": self._attr_state,
-                        "faucet_state": device_state,
-                        "preset_mode": self._attr_preset_mode,
-                        "is_valve_open": is_valve_open,
-                        "temperature": temperature,
-                        "flow_rate": self._attr_valve_position,
-                        "api_flow_rate": flow_rate,
-                    }
-                )
-                
-                _LOGGER.error("MANUAL UPDATE: Updated state to %s, position=%s", self._attr_state, self._attr_valve_position)
-                
+                self._update_valve_state_from_data(state, "manual")
                 # Update Home Assistant immediately
                 self.async_write_ha_state()
             else:
                 _LOGGER.warning("MANUAL UPDATE: No device shadow data available")
-                
+
         except Exception as err:
             _LOGGER.error("MANUAL UPDATE: Failed to get fresh API data: %s", err)
 
