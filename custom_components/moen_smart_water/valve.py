@@ -100,6 +100,10 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         self._attr_preset_mode = "coldest"
         self._attr_extra_state_attributes = {}
 
+        # Track manual state changes to prevent coordinator from overriding
+        self._manual_close_requested = False
+        self._manual_open_requested = False
+
         # Device information
         self._attr_device_info = DeviceInfo(
             identifiers={("moen_smart_water", device_id)},
@@ -119,12 +123,20 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             flow_rate = state.get("flowRate")
 
             # Determine if valve is open based on device state and flow rate
-            # Valve is open if:
-            # 1. Device state is "running", OR
-            # 2. We have a valid flow rate > 0
-            is_valve_open = device_state == "running" or (
-                flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
-            )
+            # If we manually changed the valve state, respect that until API confirms
+            if self._manual_close_requested:
+                is_valve_open = False
+                self._manual_close_requested = False  # Reset flag after one update
+            elif self._manual_open_requested:
+                is_valve_open = True
+                self._manual_open_requested = False  # Reset flag after one update
+            else:
+                # Valve is open if:
+                # 1. Device state is "running", OR
+                # 2. We have a valid flow rate > 0
+                is_valve_open = device_state == "running" or (
+                    flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
+                )
 
             if is_valve_open:
                 self._attr_is_closed = False
@@ -209,6 +221,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_is_closed = False
             self._attr_is_opening = False
             self._attr_is_closing = False
+            self._manual_open_requested = True
             # Update Home Assistant state immediately
             self.async_write_ha_state()
 
@@ -228,14 +241,18 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             _LOGGER.info("Closing valve for device %s", self._device_id)
 
             # Call the API to stop water flow
-            await self.hass.async_add_executor_job(
+            _LOGGER.info("Calling stop_water_flow API for device %s", self._device_id)
+            result = await self.hass.async_add_executor_job(
                 self.coordinator.api.stop_water_flow, self._device_id
             )
+            _LOGGER.info("Stop water flow API result: %s", result)
 
-            # Immediately update valve state to closed
+            # Immediately update valve state to closed and set position to 0
             self._attr_is_closed = True
             self._attr_is_opening = False
             self._attr_is_closing = False
+            self._attr_valve_position = 0
+            self._manual_close_requested = True
             # Update Home Assistant state immediately
             self.async_write_ha_state()
 

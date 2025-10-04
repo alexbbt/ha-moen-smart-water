@@ -127,9 +127,14 @@ class MoenButton(CoordinatorEntity, ButtonEntity):
                 _LOGGER.info("Started water flow for device %s", self._device_id)
 
             elif key == "stop_water":
-                await self.hass.async_add_executor_job(
+                _LOGGER.info(
+                    "Stop button: Calling stop_water_flow API for device %s",
+                    self._device_id,
+                )
+                result = await self.hass.async_add_executor_job(
                     self.coordinator.api.stop_water_flow, self._device_id
                 )
+                _LOGGER.info("Stop button: Stop water flow API result: %s", result)
                 _LOGGER.info("Stopped water flow for device %s", self._device_id)
 
             elif key == "coldest":
