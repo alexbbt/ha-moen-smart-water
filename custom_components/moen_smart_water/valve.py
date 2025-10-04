@@ -188,6 +188,73 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
         self.async_write_ha_state()
 
+    async def _manual_update_from_api(self) -> None:
+        """Manually update valve state with fresh API data, bypassing coordinator cache."""
+        try:
+            _LOGGER.error("MANUAL UPDATE: Getting fresh API data")
+            # Get fresh device shadow data directly from API
+            shadow = await self.hass.async_add_executor_job(
+                self.coordinator.api.get_device_shadow, self._device_id
+            )
+            
+            if shadow:
+                state = shadow.get("state", {}).get("reported", {})
+                device_state = state.get("state", "idle")
+                flow_rate = state.get("flowRate")
+                temperature = state.get("temperature", 20.0)
+                
+                _LOGGER.error("MANUAL UPDATE: device_state=%s, flow_rate=%s", device_state, flow_rate)
+                
+                # Determine if valve is open based on fresh API data
+                is_valve_open = device_state == "running" or (
+                    flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
+                )
+                
+                # Update valve state attributes
+                if is_valve_open:
+                    self._attr_is_closed = False
+                    self._attr_is_opening = False
+                    self._attr_is_closing = False
+                    self._attr_state = "open"
+                else:
+                    self._attr_is_closed = True
+                    self._attr_is_opening = False
+                    self._attr_is_closing = False
+                    self._attr_state = "closed"
+                
+                # Update valve position
+                if is_valve_open:
+                    if flow_rate is not None and flow_rate != "unknown":
+                        self._attr_valve_position = int(flow_rate)
+                    else:
+                        self._attr_valve_position = 100
+                
+                # Update temperature
+                self._attr_temperature = temperature
+                
+                # Update extra state attributes
+                self._attr_extra_state_attributes.update(
+                    {
+                        "valve_state": self._attr_state,
+                        "faucet_state": device_state,
+                        "preset_mode": self._attr_preset_mode,
+                        "is_valve_open": is_valve_open,
+                        "temperature": temperature,
+                        "flow_rate": self._attr_valve_position,
+                        "api_flow_rate": flow_rate,
+                    }
+                )
+                
+                _LOGGER.error("MANUAL UPDATE: Updated state to %s, position=%s", self._attr_state, self._attr_valve_position)
+                
+                # Update Home Assistant immediately
+                self.async_write_ha_state()
+            else:
+                _LOGGER.warning("MANUAL UPDATE: No device shadow data available")
+                
+        except Exception as err:
+            _LOGGER.error("MANUAL UPDATE: Failed to get fresh API data: %s", err)
+
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve (start water flow)."""
         try:
@@ -228,9 +295,9 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             # Update valve position to reflect actual flow rate
             self._attr_valve_position = flow_rate
 
-            # Set manual flag and trigger immediate coordinator refresh
+            # Set manual flag and get immediate fresh data
             self._manual_open_requested = True
-            await self.coordinator.async_request_refresh()
+            await self._manual_update_from_api()
             _LOGGER.info("Successfully opened valve for device %s", self._device_id)
 
         except Exception as err:
@@ -249,9 +316,9 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self.coordinator.api.stop_water_flow, self._device_id
             )
 
-            # Set manual flag and trigger immediate coordinator refresh
+            # Set manual flag and get immediate fresh data
             self._manual_close_requested = True
-            await self.coordinator.async_request_refresh()
+            await self._manual_update_from_api()
             _LOGGER.info("Successfully closed valve for device %s", self._device_id)
 
         except Exception as err:
@@ -291,8 +358,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.stop_water_flow, self._device_id
                     )
-                    # Trigger immediate coordinator refresh
-                    await self.coordinator.async_request_refresh()
+                    # Get immediate fresh data
+                    await self._manual_update_from_api()
                     _LOGGER.info(
                         "Successfully stopped water flow for device %s", self._device_id
                     )
@@ -314,8 +381,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     int(position),
                 )
 
-                # Trigger immediate coordinator refresh
-                await self.coordinator.async_request_refresh()
+                # Get immediate fresh data
+                await self._manual_update_from_api()
                 _LOGGER.info(
                     "Successfully started water flow with %d%% flow rate for device %s",
                     int(position),
