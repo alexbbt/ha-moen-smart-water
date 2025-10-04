@@ -184,58 +184,6 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
         self.async_write_ha_state()
 
-    async def _update_attributes_from_api(self) -> None:
-        """Update valve attributes with fresh data from API."""
-        try:
-            # Get fresh device shadow data
-            shadow = await self.hass.async_add_executor_job(
-                self.coordinator.api.get_device_shadow, self._device_id
-            )
-            
-            if shadow:
-                state = shadow.get("state", {}).get("reported", {})
-                device_state = state.get("state", "idle")
-                flow_rate = state.get("flowRate")
-                temperature = state.get("temperature", 20.0)
-                
-                # Determine if valve is open based on API data
-                is_valve_open = device_state == "running" or (
-                    flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
-                )
-                
-                # Update valve state attributes
-                self._attr_is_closed = not is_valve_open
-                self._attr_is_opening = False
-                self._attr_is_closing = False
-                
-                if is_valve_open and flow_rate is not None and flow_rate != "unknown":
-                    self._attr_valve_position = int(flow_rate)
-                elif is_valve_open:
-                    self._attr_valve_position = 100
-                
-                # Update temperature
-                self._attr_temperature = temperature
-                
-                # Update extra state attributes with fresh API data
-                self._attr_extra_state_attributes.update(
-                    {
-                        "faucet_state": device_state,
-                        "preset_mode": self._attr_preset_mode,
-                        "is_valve_open": is_valve_open,
-                        "temperature": temperature,
-                        "flow_rate": self._attr_valve_position,
-                        "api_flow_rate": flow_rate,
-                    }
-                )
-                
-                _LOGGER.error("ATTRIBUTES UPDATED FROM API: device_state=%s, flow_rate=%s, is_valve_open=%s", 
-                             device_state, flow_rate, is_valve_open)
-            else:
-                _LOGGER.warning("No device shadow data available for attributes update")
-                
-        except Exception as err:
-            _LOGGER.error("Failed to update attributes from API: %s", err)
-
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve (start water flow)."""
         try:
@@ -276,14 +224,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             # Update valve position to reflect actual flow rate
             self._attr_valve_position = flow_rate
 
-            # Update attributes with fresh API data
-            await self._update_attributes_from_api()
+            # Set manual flag and trigger immediate coordinator refresh
             self._manual_open_requested = True
-            
-            # Update Home Assistant state immediately
-            self.async_write_ha_state()
-
-            # Trigger coordinator update to refresh state
             await self.coordinator.async_request_refresh()
             _LOGGER.info("Successfully opened valve for device %s", self._device_id)
 
@@ -303,14 +245,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self.coordinator.api.stop_water_flow, self._device_id
             )
 
-            # Update attributes with fresh API data
-            await self._update_attributes_from_api()
+            # Set manual flag and trigger immediate coordinator refresh
             self._manual_close_requested = True
-            
-            # Update Home Assistant state immediately
-            self.async_write_ha_state()
-
-            # Trigger coordinator update to refresh state
             await self.coordinator.async_request_refresh()
             _LOGGER.info("Successfully closed valve for device %s", self._device_id)
 
@@ -351,11 +287,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.stop_water_flow, self._device_id
                     )
-                    # Update attributes with fresh API data
-                    await self._update_attributes_from_api()
-                    
-                    # Update Home Assistant state immediately
-                    self.async_write_ha_state()
+                    # Trigger immediate coordinator refresh
+                    await self.coordinator.async_request_refresh()
                     _LOGGER.info(
                         "Successfully stopped water flow for device %s", self._device_id
                     )
@@ -377,13 +310,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     int(position),
                 )
 
-                # Update attributes with fresh API data
-                await self._update_attributes_from_api()
-                
-                # Update Home Assistant state immediately
-                self.async_write_ha_state()
-
-                # Trigger coordinator update to refresh state
+                # Trigger immediate coordinator refresh
                 await self.coordinator.async_request_refresh()
                 _LOGGER.info(
                     "Successfully started water flow with %d%% flow rate for device %s",
