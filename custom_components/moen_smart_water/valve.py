@@ -94,6 +94,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         self._attr_is_closing = False
         self._attr_valve_position = 0  # 0-100 for flow rate
         self._attr_reports_position = True  # Required for valve entities
+        self._attr_state = "closed"  # Primary state: open, opening, closed, closing, stopped, unavailable, unknown
 
         # Additional attributes for temperature and status
         self._attr_temperature = 20.0
@@ -149,10 +150,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self._attr_is_closed = False
                 self._attr_is_opening = False
                 self._attr_is_closing = False
+                self._attr_state = "open"
             else:  # Valve is closed
                 self._attr_is_closed = True
                 self._attr_is_opening = False
                 self._attr_is_closing = False
+                self._attr_state = "closed"
 
             # Update valve position (flow rate)
             if is_valve_open:
@@ -174,6 +177,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             # Update extra state attributes
             self._attr_extra_state_attributes.update(
                 {
+                    "valve_state": self._attr_state,
                     "faucet_state": device_state,
                     "preset_mode": self._attr_preset_mode,
                     "is_valve_open": is_valve_open,
