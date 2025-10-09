@@ -248,6 +248,8 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
                 # Use actual API values for connected and state from shadow
                 connected = state.get("connected", False)
                 device_state = state.get("state", "unknown")
+                _LOGGER.error("API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s", 
+                             connected, device_state, state)
                 if connected:
                     self._attr_native_value = f"Connected - {device_state.title()}"
                 else:
