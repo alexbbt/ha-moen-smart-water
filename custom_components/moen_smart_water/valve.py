@@ -122,6 +122,11 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
         self.async_write_ha_state()
 
+    @property
+    def state(self) -> str:
+        """Return the current state of the valve."""
+        return self._attr_state
+
     def _update_valve_state_from_data(self, state: dict, source: str = "coordinator") -> None:
         """Update valve state and attributes from API data. Shared by coordinator and manual updates."""
         device_state = state.get("state", "idle")
@@ -155,11 +160,13 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_is_opening = False
             self._attr_is_closing = False
             self._attr_state = "open"
+            _LOGGER.error("VALVE STATE: Setting to OPEN")
         else:
             self._attr_is_closed = True
             self._attr_is_opening = False
             self._attr_is_closing = False
             self._attr_state = "closed"
+            _LOGGER.error("VALVE STATE: Setting to CLOSED")
 
         # Update valve position (flow rate)
         if is_valve_open:
@@ -170,9 +177,9 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 # If device is running but no flow rate data, assume 100%
                 self._attr_valve_position = 100
             # If valve is open but no flow rate data, keep current position
-        elif not is_valve_open and source == "manual":
-            # For manual updates, don't reset position when closing
-            pass
+        else:
+            # When valve is closed, set position to 0
+            self._attr_valve_position = 0
 
         # Update temperature
         self._attr_temperature = temperature
