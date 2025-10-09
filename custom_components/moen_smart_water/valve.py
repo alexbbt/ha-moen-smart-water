@@ -212,6 +212,14 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         except Exception as err:
             _LOGGER.error("MANUAL UPDATE: Failed to get fresh API data: %s", err)
 
+    async def _delayed_api_check(self) -> None:
+        """Wait a few seconds then check API to confirm valve state."""
+        import asyncio
+        _LOGGER.error("DELAYED CHECK: Waiting 3 seconds for API to update...")
+        await asyncio.sleep(3)  # Wait 3 seconds for API to catch up
+        _LOGGER.error("DELAYED CHECK: Checking API after delay")
+        await self._manual_update_from_api()
+
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve (start water flow)."""
         try:
@@ -252,9 +260,16 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             # Update valve position to reflect actual flow rate
             self._attr_valve_position = flow_rate
 
-            # Set manual flag and get immediate fresh data
+            # Set valve to "opening" state immediately for visual feedback
+            self._attr_is_closed = False
+            self._attr_is_opening = True
+            self._attr_is_closing = False
+            self._attr_state = "opening"
+            self.async_write_ha_state()
+
+            # Set manual flag and check API after delay
             self._manual_open_requested = True
-            await self._manual_update_from_api()
+            await self._delayed_api_check()
             _LOGGER.info("Successfully opened valve for device %s", self._device_id)
 
         except Exception as err:
@@ -273,9 +288,16 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self.coordinator.api.stop_water_flow, self._device_id
             )
 
-            # Set manual flag and get immediate fresh data
+            # Set valve to "closing" state immediately for visual feedback
+            self._attr_is_closed = False
+            self._attr_is_opening = False
+            self._attr_is_closing = True
+            self._attr_state = "closing"
+            self.async_write_ha_state()
+
+            # Set manual flag and check API after delay
             self._manual_close_requested = True
-            await self._manual_update_from_api()
+            await self._delayed_api_check()
             _LOGGER.info("Successfully closed valve for device %s", self._device_id)
 
         except Exception as err:
@@ -315,8 +337,15 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.stop_water_flow, self._device_id
                     )
-                    # Get immediate fresh data
-                    await self._manual_update_from_api()
+                    # Set valve to "closing" state immediately for visual feedback
+                    self._attr_is_closed = False
+                    self._attr_is_opening = False
+                    self._attr_is_closing = True
+                    self._attr_state = "closing"
+                    self.async_write_ha_state()
+
+                    # Check API after delay
+                    await self._delayed_api_check()
                     _LOGGER.info(
                         "Successfully stopped water flow for device %s", self._device_id
                     )
@@ -338,8 +367,15 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     int(position),
                 )
 
-                # Get immediate fresh data
-                await self._manual_update_from_api()
+                # Set valve to "opening" state immediately for visual feedback
+                self._attr_is_closed = False
+                self._attr_is_opening = True
+                self._attr_is_closing = False
+                self._attr_state = "opening"
+                self.async_write_ha_state()
+
+                # Check API after delay
+                await self._delayed_api_check()
                 _LOGGER.info(
                     "Successfully started water flow with %d%% flow rate for device %s",
                     int(position),
