@@ -248,7 +248,7 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
                 # Use actual API values for connected and state from shadow
                 connected = state.get("connected", False)
                 device_state = state.get("state", "unknown")
-                _LOGGER.error("API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s", 
+                _LOGGER.error("API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s",
                              connected, device_state, state)
                 if connected:
                     self._attr_native_value = f"Connected - {device_state.title()}"
@@ -270,9 +270,12 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "wifi_rssi":
             self._attr_native_value = state.get("wifiRssi")
         elif key == "wifi_connected":
-            # WiFi connected status - assume connected if we have signal data
+            # WiFi connected status - use actual connected field from device
+            connected = state.get("connected", False)
+            wifi_rssi = state.get("wifiRssi")
+            # Device is connected to WiFi if it has signal data AND can reach servers
             self._attr_native_value = (
-                "connected" if state.get("wifiRssi") is not None else "disconnected"
+                "connected" if connected and wifi_rssi is not None else "disconnected"
             )
         elif key == "battery_percentage":
             self._attr_native_value = state.get("batteryPercentage")
