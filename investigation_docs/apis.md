@@ -686,3 +686,115 @@ Here are a few examples, they all seem to take decimal celcius, which can be fro
     "Payload": "{\"statusCode\":200,\"body\":{\"status\":true}}"
 }
 ```
+
+## Request Specific Volume
+
+### Request
+
+POST: https://exo9f857n8.execute-api.us-east-2.amazonaws.com/prod/v1/invoker
+content-type: application/json
+authorization: Bearer <REDACTED>
+user-agent: Smartwater-iOS-prod-3.45.0
+
+```JSON
+{
+    "body": {
+        "payload": {
+            "commandSrc": "app",
+            "command": "dispense",
+            "volume": 236588
+        },
+        "locale": "en_US",
+        "clientId": "101046568"
+    },
+    "fn": "smartwater-app-shadow-api-prod-update",
+    "parse": false,
+    "escape": false
+}
+```
+
+### Response
+
+```JSON
+{
+    "StatusCode": 200,
+    "ExecutedVersion": "$LATEST",
+    "Payload": "{\"statusCode\":200,\"body\":{\"status\":true}}"
+}
+```
+
+
+## Request Temp
+
+### Request
+
+POST: https://exo9f857n8.execute-api.us-east-2.amazonaws.com/prod/v1/invoker
+content-type: application/json
+authorization: Bearer <REDACTED>
+user-agent: Smartwater-iOS-prod-3.45.0
+
+```JSON
+{
+    "body": {
+        "payload": {
+            "temperature": 37.78,
+            "flowRate": 100,
+            "commandSrc": "app",
+            "command": "run"
+        },
+        "locale": "en_US",
+        "clientId": "101046568"
+    },
+    "parse": false,
+    "fn": "smartwater-app-shadow-api-prod-update",
+    "escape": false
+}
+```
+
+### Response
+
+```JSON
+{
+    "StatusCode": 200,
+    "ExecutedVersion": "$LATEST",
+    "Payload": "{\"statusCode\":200,\"body\":{\"status\":true}}"
+}
+```
+
+## Temp and Volume
+
+### Request
+
+POST: https://exo9f857n8.execute-api.us-east-2.amazonaws.com/prod/v1/invoker
+content-type: application/json
+authorization: Bearer <REDACTED>
+user-agent: Smartwater-iOS-prod-3.45.0
+
+```JSON
+{
+    "body": {
+        "clientId": "101046568",
+        "payload": {
+            "temperature": 37.78,
+            "flowRate": 100,
+            "commandSrc": "app",
+            "volume": 236588,
+            "command": "dispense"
+        },
+        "locale": "en_US"
+    },
+    "escape": false,
+    "fn": "smartwater-app-shadow-api-prod-update",
+    "parse": false
+}
+```
+
+### Response
+
+```JSON
+{
+    "StatusCode": 200,
+    "ExecutedVersion": "$LATEST",
+    "Payload": "{\"statusCode\":200,\"body\":{\"status\":true}}"
+}
+```
