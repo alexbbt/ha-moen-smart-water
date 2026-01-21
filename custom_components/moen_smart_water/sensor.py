@@ -253,7 +253,7 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
             connected = state.get("connected", False)
             wifi_rssi = state.get("wifiRssi")
             self._attr_native_value = (
-                "connected" if connected and wifi_rssi is not None else "disconnected"
+                "Connected" if connected and wifi_rssi is not None else "Disconnected"
             )
         elif key == "battery_percentage":
             self._attr_native_value = state.get("batteryPercentage")
