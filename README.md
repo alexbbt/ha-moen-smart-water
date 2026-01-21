@@ -4,7 +4,7 @@
 # Moen Smart Water Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
-[![ha_version](https://img.shields.io/badge/Home%20Assistant-2023.1%2B-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
+[![ha_version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
 [![version](https://img.shields.io/github/v/release/alexbbt/ha-moen-smart-water?style=for-the-badge&color=purple)](https://github.com/alexbbt/ha-moen-smart-water/releases)
 [![license](https://img.shields.io/github/license/alexbbt/ha-moen-smart-water?style=for-the-badge&color=red)](https://github.com/alexbbt/ha-moen-smart-water/blob/main/LICENSE)
 [![iot_class](https://img.shields.io/badge/iot_class-cloud_polling-green.svg?style=for-the-badge)](https://developers.home-assistant.io/docs/creating_integration_manifest#iot-class)
@@ -12,12 +12,14 @@
 ### Smart Faucet Control Made Simple
 #### Control your Moen Smart Water Network faucet directly from Home Assistant
 
-* Real-time faucet state monitoring and control
-* Preset volume dispensing (250ml, 500ml, 750ml)
-* Custom volume control (50-2000ml)
+* Complete water flow control with valve entity (open/close/position)
+* Real-time temperature control and monitoring (0-100°C)
+* Adjustable flow rate control (10-100%)
+* Volume-based dispensing (50-2000ml)
+* Comprehensive diagnostic sensors (WiFi, Battery, Firmware)
 * Cloud connection status monitoring
 * Easy UI-based configuration
-* Professional Moen integration
+* Professional Moen integration with full API access
 
 > [!WARNING]
 > - This integration is **unofficial** and not affiliated with Moen
@@ -44,15 +46,67 @@
 
 ## Features
 
+- **Valve Entity**: Control water flow with open/close/position control
+  - Open/close valve to start/stop water flow
+  - Adjustable flow rate position (0-100%)
+  - Real-time temperature display
 - **Button Controls**:
-  - Start/Stop dispensing water
-  - Preset volume buttons (250ml, 500ml, 750ml)
-- **Number Entity**: Adjustable target volume (50-2000ml)
+  - Start Water (starts flow with current settings)
+  - Stop Water (stops water flow immediately)
+- **Number Entities**:
+  - Temperature control (0-100°C, range adjusts based on learned device limits)
+  - Default Flow Rate (10-100%, used for gesture activation)
+- **Select Entity**:
+  - Default Temperature mode for gesture activation (Handle Position, Coldest, Equal Mix)
 - **Sensors**:
   - Faucet state
   - Last dispense volume
-  - Cloud connection status
+  - Current temperature
+  - API Status
+  - Last Update (timestamp)
+  - WiFi Network name
+  - WiFi Signal strength (dBm)
+  - WiFi Connected status
+  - Battery percentage
+  - Firmware Version
+  - Last Connect (timestamp)
 - **Services**: Programmatic control via Home Assistant services
+
+## Advanced Configuration
+
+### Temperature Control
+
+The integration provides comprehensive temperature control for your Moen Smart Faucet:
+
+- **Temperature Number Entity**: Set specific temperature (0-100°C)
+  - Range automatically adjusts based on your faucet's learned temperature limits
+  - Works both when water is idle (sets for next use) and running (changes immediately)
+- **Temperature Sensor**: Monitor current water temperature in real-time
+- **Default Temperature Select**: Choose default temperature mode for gesture activation
+  - Handle Position: Use physical handle position
+  - Coldest: Always use coldest available temperature
+  - Equal Mix: Use 50/50 hot/cold mix
+
+### Flow Rate Control
+
+The integration provides a **Default Flow Rate** number entity that allows you to set the flow rate percentage (10-100%) used when activating the faucet via gesture controls (hand wave or handle). This setting is applied when you start the water flow without explicitly specifying a flow rate.
+
+**Valve Position Control**: Use the valve entity to control flow rate in real-time
+- Set position 0-100% to control water flow intensity
+- Position is preserved across temperature changes
+- Position 0% closes the valve
+
+**Enhanced Control vs. Official App:**
+- The Home Assistant integration allows setting the default flow rate as low as **10%** (the device's trickle flow rate)
+- The official Moen mobile app restricts this to a minimum of **30%**
+- This provides finer control over water flow, useful for scenarios requiring minimal flow rates
+
+> [!TIP]
+> **Use Cases for Lower Flow Rates (10-30%):**
+> - Hand washing and personal hygiene
+> - Washing delicate items
+> - Filling containers slowly to prevent splashing
+> - Conserving water for routine tasks
 
 ## Time & Date Sensors
 
@@ -95,46 +149,70 @@ Get the folder `custom_components/moen_smart_water` in your HA `config/custom_co
 
 ## Entity Naming
 
-Entities are automatically created for each connected Moen Smart Water Network faucet. They are named in the format `{entity_type}_{device_name}` for easy identification.
+Entities are automatically created for each connected Moen Smart Water Network faucet. They are named in the format `{device_name}_{entity_type}` for easy identification.
 
 The integration automatically detects and creates entities for:
 
-- **Buttons**: Start/Stop dispensing, Preset volumes (250ml, 500ml, 750ml)
-- **Number**: Custom target volume control (50-2000ml)
-- **Sensors**: Faucet state, Last dispense volume, Cloud connection status
+- **Valve**: Water control with flow position (0-100%)
+- **Buttons**: Start Water, Stop Water
+- **Numbers**: Temperature control (0-100°C), Default Flow Rate (10-100%)
+- **Select**: Default Temperature mode (Handle Position, Coldest, Equal Mix)
+- **Sensors**: Faucet state, Temperature, Last dispense volume, API status, WiFi info, Battery, Firmware, Timestamps
 
 > [!NOTE]
 > Only entities available on your specific faucet model will be created. The integration queries your Moen account and only adds entities for faucets that are detected.
 
 Example entity names:
-- `button.start_dispense_kitchen_faucet`
-- `button.preset_1_kitchen_faucet`
-- `number.target_volume_kitchen_faucet`
-- `sensor.faucet_state_kitchen_faucet`
-- `sensor.last_dispense_volume_kitchen_faucet`
-- `sensor.cloud_connected_kitchen_faucet`
+- `valve.kitchen_faucet_water_control`
+- `button.kitchen_faucet_start_water`
+- `button.kitchen_faucet_stop_water`
+- `number.kitchen_faucet_temperature`
+- `number.kitchen_faucet_default_flow_rate`
+- `select.kitchen_faucet_default_temperature`
+- `sensor.kitchen_faucet_faucet_state`
+- `sensor.kitchen_faucet_temperature`
+- `sensor.kitchen_faucet_last_dispense_volume`
+- `sensor.kitchen_faucet_api_status`
+- `sensor.kitchen_faucet_battery`
+- `sensor.kitchen_faucet_wifi_signal`
 
 ### Services
 
 You can also control the faucet programmatically using services:
 
 ```yaml
-# Dispense water
+# Dispense water with specific volume
 service: moen_smart_water.dispense_water
 data:
   device_id: "your_device_id"
-  volume_ml: 500
-  timeout: 120
+  volume_ml: 500  # Optional, 50-2000ml
+  timeout: 120    # Optional, 10-300s
 
 # Stop dispensing
 service: moen_smart_water.stop_dispensing
 data:
   device_id: "your_device_id"
 
+# Set temperature
+service: moen_smart_water.set_temperature
+data:
+  device_id: "your_device_id"
+  temperature: 25  # Temperature in Celsius
+  flow_rate: 100   # Optional, 0-100%
+
+# Set default flow rate (for gesture activation)
+service: moen_smart_water.set_default_flow_rate
+data:
+  device_id: "your_device_id"
+  default_flow_rate: 50  # 0-100%
+
 # Get device status
 service: moen_smart_water.get_device_status
 data:
   device_id: "your_device_id"
+
+# Get user profile
+service: moen_smart_water.get_user_profile
 ```
 
 > [!TIP]
@@ -142,25 +220,65 @@ data:
 > * Check the Home Assistant logs after integration setup
 > * Look for device discovery messages
 > * Use the `moen_smart_water.get_device_status` service to list available devices
+> * Device ID is visible in the device information page in Home Assistant
 
 ### Automations
 
-Example automation to dispense water when motion is detected:
+Example automations for common use cases:
 
 ```yaml
-- alias: "Dispense water on motion"
+# Example 1: Open valve when motion is detected
+- alias: "Start water on motion"
   trigger:
-    - platform: motion
-      entity_id: binary_sensor.motion_sensor
+    - platform: state
+      entity_id: binary_sensor.kitchen_motion
+      to: "on"
+  action:
+    - service: valve.open_valve
+      target:
+        entity_id: valve.kitchen_faucet_water_control
+
+# Example 2: Dispense specific volume
+- alias: "Dispense water for coffee"
+  trigger:
+    - platform: state
+      entity_id: input_boolean.make_coffee
+      to: "on"
   action:
     - service: moen_smart_water.dispense_water
       data:
         device_id: "your_device_id"
-        volume_ml: 250
+        volume_ml: 500
+        timeout: 120
+
+# Example 3: Set temperature based on time of day
+- alias: "Morning warm water"
+  trigger:
+    - platform: time
+      at: "07:00:00"
+  action:
+    - service: number.set_value
+      target:
+        entity_id: number.kitchen_faucet_temperature
+      data:
+        value: 35  # Warm temperature in Celsius
+
+# Example 4: Adjust flow rate for gentle washing
+- alias: "Gentle flow for delicates"
+  trigger:
+    - platform: state
+      entity_id: input_boolean.gentle_mode
+      to: "on"
+  action:
+    - service: valve.set_valve_position
+      target:
+        entity_id: valve.kitchen_faucet_water_control
+      data:
+        position: 20  # 20% flow rate
 ```
 
 > [!NOTE]
-> Replace `"your_device_id"` with the actual device ID from your Moen Smart Water Network faucet. You can find this in the Home Assistant logs or by using the device status service.
+> Replace `"your_device_id"` and entity IDs with your actual device/entity names. You can find device IDs in the Home Assistant logs or device information pages.
 
 ## Troubleshooting
 
