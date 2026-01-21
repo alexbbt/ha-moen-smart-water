@@ -185,20 +185,12 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         )
 
         # Set initial value based on sensor type
+        # Use None for all sensors initially - Home Assistant will show "Unknown" which is standard
         # Numeric sensors should start with None to avoid ValueError
-        if description.key in [
-            "temperature",
-            "battery_percentage",
-            "wifi_rssi",
-            "last_dispense_volume",
-            "last_connect",
-            "last_update",
-        ]:
-            self._attr_native_value = None
-        elif description.key == "api_status":
+        if description.key == "api_status":
             self._attr_native_value = "Checking"
         else:
-            self._attr_native_value = "loading"
+            self._attr_native_value = None
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
