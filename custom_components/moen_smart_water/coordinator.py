@@ -55,7 +55,7 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for device in devices
             }
 
-            # Get device shadows for all devices (operational data) in parallel
+            # Define fetch functions for parallel execution
             async def fetch_shadow(device_id: str) -> tuple[str, dict[str, Any]]:
                 """Fetch a single device shadow."""
                 try:
@@ -74,19 +74,6 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # Return empty shadow if we can't get it
                     return device_id, {}
 
-            # Fetch all shadows in parallel
-            _LOGGER.debug("Fetching shadows for %d devices", len(self._devices))
-            shadow_results = await asyncio.gather(
-                *[fetch_shadow(device_id) for device_id in self._devices.keys()],
-                return_exceptions=False,
-            )
-            device_shadows = dict(shadow_results)
-            _LOGGER.debug("Fetched %d device shadows", len(device_shadows))
-
-            # All diagnostic data is now available in device shadows
-            self._device_shadows = device_shadows
-
-            # Get daily usage data for all devices (for cumulative water usage)
             async def fetch_usage(device_id: str) -> tuple[str, dict[str, Any]]:
                 """Fetch daily usage data for a device."""
                 try:
@@ -105,15 +92,29 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # Return empty usage if we can't get it
                     return device_id, {}
 
-            # Fetch all usage data in parallel
-            _LOGGER.debug("Fetching usage for %d devices", len(self._devices))
-            usage_results = await asyncio.gather(
-                *[fetch_usage(device_id) for device_id in self._devices.keys()],
-                return_exceptions=False,
+            # Fetch shadows and usage data in parallel for all devices
+            _LOGGER.debug(
+                "Fetching shadows and usage for %d devices", len(self._devices)
             )
+            shadow_tasks = [
+                fetch_shadow(device_id) for device_id in self._devices.keys()
+            ]
+            usage_tasks = [fetch_usage(device_id) for device_id in self._devices.keys()]
+
+            # Run all fetches in parallel
+            shadow_results, usage_results = await asyncio.gather(
+                asyncio.gather(*shadow_tasks, return_exceptions=False),
+                asyncio.gather(*usage_tasks, return_exceptions=False),
+            )
+
+            device_shadows = dict(shadow_results)
             device_usage = dict(usage_results)
+
+            _LOGGER.debug("Fetched %d device shadows", len(device_shadows))
             _LOGGER.debug("Fetched %d device usage records", len(device_usage))
 
+            # Store the fetched data
+            self._device_shadows = device_shadows
             self._device_usage = device_usage
 
             # Store updated tokens if they were refreshed
