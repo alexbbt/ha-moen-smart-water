@@ -9,6 +9,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -46,9 +47,10 @@ LAST_DISPENSE_VOLUME_SENSOR = SensorEntityDescription(
 
 WATER_USAGE_SENSOR = SensorEntityDescription(
     key="water_usage",
-    name="Water Usage",
+    name="Water Usage Today",
     native_unit_of_measurement="L",
     device_class=SensorDeviceClass.VOLUME,
+    state_class=SensorStateClass.TOTAL_INCREASING,
     icon="mdi:water",
 )
 
@@ -229,11 +231,14 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
             else:
                 self._attr_native_value = None
         elif key == "water_usage":
-            # Cumulative water usage from device shadow
-            # Convert from μL to L for better readability (divide by 1,000,000)
-            volume_ul = state.get("volume")
-            if volume_ul is not None:
-                self._attr_native_value = volume_ul / 1000000.0
+            # Cumulative water usage from daily usage API
+            # Get usage data for this device
+            usage_data = self.coordinator.get_device_usage(self._device_id)
+            if usage_data and "current" in usage_data:
+                # Extract total from current day's usage (in microliters)
+                total_ul = usage_data.get("current", {}).get("total", 0)
+                # Convert from μL to L for better readability (divide by 1,000,000)
+                self._attr_native_value = total_ul / 1000000.0
             else:
                 self._attr_native_value = None
         elif key == "temperature":

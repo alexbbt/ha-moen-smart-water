@@ -29,6 +29,7 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._devices: dict[str, dict[str, Any]] = {}
         self._device_shadows: dict[str, dict[str, Any]] = {}
         self._device_details: dict[str, dict[str, Any]] = {}
+        self._device_usage: dict[str, dict[str, Any]] = {}
 
         super().__init__(
             hass,
@@ -85,6 +86,36 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # All diagnostic data is now available in device shadows
             self._device_shadows = device_shadows
 
+            # Get daily usage data for all devices (for cumulative water usage)
+            async def fetch_usage(device_id: str) -> tuple[str, dict[str, Any]]:
+                """Fetch daily usage data for a device."""
+                try:
+                    _LOGGER.debug("Fetching daily usage for device %s", device_id)
+                    usage = await self.hass.async_add_executor_job(
+                        self.api.get_daily_usage, device_id
+                    )
+                    _LOGGER.debug(
+                        "Successfully fetched daily usage for device %s", device_id
+                    )
+                    return device_id, usage
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Failed to get daily usage for device %s: %s", device_id, err
+                    )
+                    # Return empty usage if we can't get it
+                    return device_id, {}
+
+            # Fetch all usage data in parallel
+            _LOGGER.debug("Fetching usage for %d devices", len(self._devices))
+            usage_results = await asyncio.gather(
+                *[fetch_usage(device_id) for device_id in self._devices.keys()],
+                return_exceptions=False,
+            )
+            device_usage = dict(usage_results)
+            _LOGGER.debug("Fetched %d device usage records", len(device_usage))
+
+            self._device_usage = device_usage
+
             # Store updated tokens if they were refreshed
             from . import _store_tokens
 
@@ -94,6 +125,7 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "devices": self._devices,
                 "device_shadows": self._device_shadows,
                 "device_details": self._device_details,
+                "device_usage": self._device_usage,
             }
 
         except Exception as err:
@@ -115,3 +147,7 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_all_device_shadows(self) -> dict[str, dict[str, Any]]:
         """Get all device shadows."""
         return self._device_shadows
+
+    def get_device_usage(self, device_id: str) -> dict[str, Any] | None:
+        """Get device usage data by ID."""
+        return self._device_usage.get(device_id)
