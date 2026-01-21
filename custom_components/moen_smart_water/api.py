@@ -215,6 +215,9 @@ class MoenAPI:
         url = f"{OAUTH_BASE}/users/me"
 
         try:
+            _LOGGER.debug("Getting user profile")
+            _LOGGER.debug("User profile URL: %s", url)
+
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
 
@@ -223,6 +226,7 @@ class MoenAPI:
             _LOGGER.info(
                 "Retrieved user profile for %s", profile.get("email", "unknown")
             )
+            _LOGGER.debug("User profile data: %s", json.dumps(profile, indent=2))
             return profile
 
         except requests.exceptions.RequestException as err:
@@ -237,10 +241,16 @@ class MoenAPI:
         params = {"limit": 100}
 
         try:
+            _LOGGER.debug("Getting locations")
+            _LOGGER.debug("Locations URL: %s", url)
+            _LOGGER.debug("Locations params: %s", params)
+
             response = self.session.get(url, params=params, timeout=30)
             response.raise_for_status()
 
             data = response.json()
+            _LOGGER.debug("Locations full response: %s", json.dumps(data, indent=2))
+
             locations = data.get("locations", [])
             self._locations = locations
             _LOGGER.info("Retrieved %d locations", len(locations))
@@ -263,15 +273,25 @@ class MoenAPI:
         }
 
         try:
+            _LOGGER.debug("Getting user details and temperature definitions")
+            _LOGGER.debug("User details URL: %s", url)
+            _LOGGER.debug("User details payload: %s", payload)
+
             response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
 
             data = response.json()
+            _LOGGER.debug("User details response status: %s", data.get("StatusCode"))
+            _LOGGER.debug("User details full response: %s", json.dumps(data, indent=2))
+
             if data.get("StatusCode") == 200:
                 payload_data = json.loads(data["Payload"])
                 body = payload_data.get("body", {})
                 self._temperature_definitions = body.get("temperatureDefinitions", {})
                 _LOGGER.info("Retrieved user details and temperature definitions")
+                _LOGGER.debug(
+                    "Temperature definitions: %s", self._temperature_definitions
+                )
                 return body
             else:
                 _LOGGER.error("Failed to get user details: %s", data)
@@ -294,10 +314,17 @@ class MoenAPI:
         }
 
         try:
+            _LOGGER.debug("Listing devices")
+            _LOGGER.debug("List devices URL: %s", url)
+            _LOGGER.debug("List devices payload: %s", payload)
+
             response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
 
             data = response.json()
+            _LOGGER.debug("List devices response status: %s", data.get("StatusCode"))
+            _LOGGER.debug("List devices full response: %s", json.dumps(data, indent=2))
+
             if data.get("StatusCode") == 200:
                 payload_data = json.loads(data["Payload"])
                 all_devices = payload_data.get("body", [])
@@ -314,6 +341,7 @@ class MoenAPI:
                     len(vak_devices),
                     len(all_devices),
                 )
+                _LOGGER.debug("VAK devices data: %s", json.dumps(vak_devices, indent=2))
                 return vak_devices
             else:
                 _LOGGER.error("Failed to list devices: %s", data)
@@ -368,11 +396,16 @@ class MoenAPI:
         params = {"expand": "addons", "units": units}
 
         try:
+            _LOGGER.debug("Getting device details for %s", device_id)
+            _LOGGER.debug("Device details URL: %s", url)
+            _LOGGER.debug("Device details params: %s", params)
+
             response = self.session.get(url, params=params, timeout=30)
             response.raise_for_status()
 
             device_data = response.json()
             _LOGGER.info("Retrieved device details for %s", device_id)
+            _LOGGER.debug("Device details data: %s", json.dumps(device_data, indent=2))
             return device_data
 
         except requests.exceptions.RequestException as err:
@@ -411,14 +444,24 @@ class MoenAPI:
         }
 
         try:
+            _LOGGER.debug("Getting device shadow for %s", client_id)
+            _LOGGER.debug("Shadow request URL: %s", url)
+            _LOGGER.debug("Shadow request payload: %s", payload)
+
             response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
 
             data = response.json()
+            _LOGGER.debug("Shadow response status: %s", data.get("StatusCode"))
+            _LOGGER.debug("Shadow full response: %s", json.dumps(data, indent=2))
+
             if data.get("StatusCode") == 200:
                 payload_data = json.loads(data["Payload"])
                 shadow_data = payload_data.get("body", {})
                 _LOGGER.info("Retrieved device shadow for %s", client_id)
+                _LOGGER.debug(
+                    "Shadow parsed data: %s", json.dumps(shadow_data, indent=2)
+                )
                 return shadow_data
             else:
                 _LOGGER.error("Failed to get device shadow: %s", data)
@@ -517,14 +560,22 @@ class MoenAPI:
         }
 
         try:
+            _LOGGER.debug("Updating device shadow for %s", client_id)
+            _LOGGER.debug("Update request URL: %s", url)
+            _LOGGER.debug("Update request payload: %s", json.dumps(payload, indent=2))
+
             response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
 
             data = response.json()
+            _LOGGER.debug("Update response status: %s", data.get("StatusCode"))
+            _LOGGER.debug("Update full response: %s", json.dumps(data, indent=2))
+
             if data.get("StatusCode") == 200:
                 payload_data = json.loads(data["Payload"])
                 result = payload_data.get("body", {})
                 _LOGGER.info("Updated device shadow for %s", client_id)
+                _LOGGER.debug("Update parsed result: %s", json.dumps(result, indent=2))
                 return result
             else:
                 _LOGGER.error("Failed to update device shadow: %s", data)
