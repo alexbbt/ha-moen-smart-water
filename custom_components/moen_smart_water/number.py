@@ -155,7 +155,9 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
 
             elif key == "flow_rate":
                 await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_flow_rate, self._device_id, int(value)
+                    self.coordinator.api.set_default_flow_rate,
+                    self._device_id,
+                    int(value),
                 )
                 self._attr_native_value = int(value)
                 _LOGGER.info(

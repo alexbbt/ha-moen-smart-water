@@ -45,10 +45,10 @@ SET_TEMPERATURE_SERVICE_SCHEMA = vol.Schema(
     }
 )
 
-SET_FLOW_RATE_SERVICE_SCHEMA = vol.Schema(
+SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
-        vol.Required("flow_rate"): vol.All(int, vol.Range(min=0, max=100)),
+        vol.Required("default_flow_rate"): vol.All(int, vol.Range(min=0, max=100)),
     }
 )
 
@@ -210,10 +210,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         except Exception as err:
             _LOGGER.error("Failed to set temperature for device %s: %s", device_id, err)
 
-    async def set_flow_rate(call: ServiceCall) -> None:
+    async def set_default_flow_rate(call: ServiceCall) -> None:
         """Service to set default flow rate for gesture activation."""
         device_id = call.data["device_id"]
-        flow_rate = call.data["flow_rate"]
+        default_flow_rate = call.data["default_flow_rate"]
 
         # Find the coordinator for this device
         coordinator = None
@@ -235,15 +235,17 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         try:
             await hass.async_add_executor_job(
-                coordinator.api.set_flow_rate, device_id, flow_rate
+                coordinator.api.set_default_flow_rate, device_id, default_flow_rate
             )
             _LOGGER.info(
                 "Set default flow rate (for gesture activation) to %d%% for device %s",
-                flow_rate,
+                default_flow_rate,
                 device_id,
             )
         except Exception as err:
-            _LOGGER.error("Failed to set flow rate for device %s: %s", device_id, err)
+            _LOGGER.error(
+                "Failed to set default flow rate for device %s: %s", device_id, err
+            )
 
     # Register services
     try:
@@ -284,9 +286,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         hass.services.async_register(
             "moen_smart_water",
-            "set_flow_rate",
-            set_flow_rate,
-            schema=SET_FLOW_RATE_SERVICE_SCHEMA,
+            "set_default_flow_rate",
+            set_default_flow_rate,
+            schema=SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA,
         )
 
         _LOGGER.info("Successfully registered all Moen Smart Water services")

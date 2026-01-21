@@ -605,9 +605,24 @@ class MoenAPI:
         }
         return self.update_device_settings(client_id, settings)
 
-    def set_flow_rate(self, client_id: str, flow_rate: int) -> dict[str, Any]:
-        """Set default flow rate."""
-        return self.update_device_settings(client_id, {"defaultFlowRate": flow_rate})
+    def set_default_flow_rate(
+        self, client_id: str, default_flow_rate: int
+    ) -> dict[str, Any]:
+        """Set default flow rate for gesture activation."""
+        return self.update_device_settings(
+            client_id, {"defaultFlowRate": default_flow_rate}
+        )
+
+    def set_default_temperature(
+        self, client_id: str, temperature_mode: str
+    ) -> dict[str, Any]:
+        """Set default temperature mode for gesture activation.
+
+        Args:
+            client_id: Device client ID
+            temperature_mode: One of "handle", "coldest", or "equal" (for equal mix)
+        """
+        return self.update_device_settings(client_id, {"defaultTemp": temperature_mode})
 
     # Convenience methods for getting cached data
     def get_cached_devices(self) -> list[dict[str, Any]]:

@@ -25,6 +25,14 @@ TEMPERATURE_PRESET_SELECT = SelectEntityDescription(
     icon="mdi:thermometer-lines",
 )
 
+DEFAULT_TEMPERATURE_SELECT = SelectEntityDescription(
+    key="default_temperature",
+    name="Default Temperature",
+    options=["handle", "coldest", "equal"],
+    entity_category=EntityCategory.CONFIG,
+    icon="mdi:gesture-tap",
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -42,8 +50,15 @@ async def async_setup_entry(
     entities = []
     for device_id, device in devices.items():
         device_name = device.get("name", f"Moen Smart Water {device_id}")
-        entities.append(
-            MoenSelect(coordinator, device_id, device_name, TEMPERATURE_PRESET_SELECT)
+        entities.extend(
+            [
+                MoenSelect(
+                    coordinator, device_id, device_name, TEMPERATURE_PRESET_SELECT
+                ),
+                MoenSelect(
+                    coordinator, device_id, device_name, DEFAULT_TEMPERATURE_SELECT
+                ),
+            ]
         )
 
     async_add_entities(entities)
@@ -75,10 +90,14 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
             model="Smart Faucet",
         )
 
-        # Set initial option
-        self._attr_current_option = (
-            description.options[0] if description.options else ""
-        )
+        # Set initial option based on description key
+        if description.key == "default_temperature":
+            # Default to "handle" for default temperature
+            self._attr_current_option = "handle"
+        else:
+            self._attr_current_option = (
+                description.options[0] if description.options else ""
+            )
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -105,6 +124,19 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
                 self._attr_current_option = "hottest"
             else:
                 self._attr_current_option = "custom"
+        elif key == "default_temperature":
+            # Get default temperature mode for gesture activation
+            default_temp = state.get("defaultTemp", "handle")
+            # Map API values to display options
+            if default_temp == "handle":
+                self._attr_current_option = "handle"
+            elif default_temp == "coldest":
+                self._attr_current_option = "coldest"
+            elif default_temp in ["equal", "mix"]:
+                self._attr_current_option = "equal"
+            else:
+                # Default to handle if unknown value
+                self._attr_current_option = "handle"
 
         self.async_write_ha_state()
 
@@ -146,6 +178,20 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
                     _LOGGER.info(
                         "Custom temperature selected - use temperature number entity to set specific value"
                     )
+            elif key == "default_temperature":
+                # Set default temperature mode for gesture activation
+                # Map display options to API values
+                api_value = option  # Options already match API values
+                await self.hass.async_add_executor_job(
+                    self.coordinator.api.set_default_temperature,
+                    self._device_id,
+                    api_value,
+                )
+                _LOGGER.info(
+                    "Set default temperature (for gesture activation) to %s for device %s",
+                    option,
+                    self._device_id,
+                )
 
             self._attr_current_option = option
             _LOGGER.info("Set %s to %s for device %s", key, option, self._device_id)
