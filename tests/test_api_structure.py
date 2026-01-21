@@ -8,7 +8,7 @@ from custom_components.moen_smart_water.api import MoenAPI
 class TestAPIStructure:
     """Test cases for API structure and initialization."""
 
-    def test_api_init(self):
+    def test_api_init(self) -> None:
         """Test API initialization."""
         api = MoenAPI("test@example.com", "password")
 
@@ -18,14 +18,14 @@ class TestAPIStructure:
         assert api.access_token is None
         assert api.refresh_token is None
 
-    def test_api_session_headers(self):
+    def test_api_session_headers(self) -> None:
         """Test API session headers are set correctly."""
         api = MoenAPI("test@example.com", "password")
 
         assert "User-Agent" in api.session.headers
         assert api.session.headers["User-Agent"] == "Smartwater-iOS-prod-3.39.0"
 
-    def test_api_cached_data_initialization(self):
+    def test_api_cached_data_initialization(self) -> None:
         """Test API cached data is initialized correctly."""
         api = MoenAPI("test@example.com", "password")
 
@@ -34,7 +34,7 @@ class TestAPIStructure:
         assert api._devices is None
         assert api._temperature_definitions is None
 
-    def test_api_methods_exist(self):
+    def test_api_methods_exist(self) -> None:
         """Test that API methods exist."""
         api = MoenAPI("test@example.com", "password")
 
@@ -46,4 +46,4 @@ class TestAPIStructure:
         assert hasattr(api, "start_water_flow")
         assert hasattr(api, "stop_water_flow")
         assert hasattr(api, "set_specific_temperature")
-        assert hasattr(api, "set_flow_rate")
+        assert hasattr(api, "set_default_flow_rate")

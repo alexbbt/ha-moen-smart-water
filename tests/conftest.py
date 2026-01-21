@@ -51,7 +51,7 @@ async def coordinator(
     with patch(
         "custom_components.moen_smart_water.coordinator.MoenAPI", return_value=mock_api
     ):
-        coordinator = MoenDataUpdateCoordinator(hass, config_entry)
+        coordinator = MoenDataUpdateCoordinator(hass, mock_api, config_entry)
         return coordinator
 
 
