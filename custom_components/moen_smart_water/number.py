@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from homeassistant.components.number import (
@@ -199,6 +200,14 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                         self._device_id,
                     )
 
+                # Write state immediately for responsive UI
+                self.async_write_ha_state()
+
+                # Request coordinator refresh to update from API
+                # Wait a moment for API to process the change, then refresh
+                await asyncio.sleep(1)  # Give API a moment to update
+                await self.coordinator.async_request_refresh()
+
             elif key == "flow_rate":
                 await self.hass.async_add_executor_job(
                     self.coordinator.api.set_default_flow_rate,
@@ -211,6 +220,14 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                     int(value),
                     self._device_id,
                 )
+
+                # Write state immediately for responsive UI
+                self.async_write_ha_state()
+
+                # Request coordinator refresh to update from API
+                # Wait a moment for API to process the change, then refresh
+                await asyncio.sleep(1)  # Give API a moment to update
+                await self.coordinator.async_request_refresh()
 
         except Exception as err:
             _LOGGER.error(
