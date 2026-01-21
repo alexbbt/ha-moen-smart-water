@@ -40,10 +40,13 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data via library."""
         try:
+            _LOGGER.debug("Starting coordinator data update")
+
             # Get fresh device list
             devices = await self.hass.async_add_executor_job(
                 self.api.get_cached_devices
             )
+            _LOGGER.debug("Coordinator received %d devices", len(devices))
 
             # Update device cache
             self._devices = {
@@ -55,8 +58,12 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             async def fetch_shadow(device_id: str) -> tuple[str, dict[str, Any]]:
                 """Fetch a single device shadow."""
                 try:
+                    _LOGGER.debug("Fetching shadow for device %s", device_id)
                     shadow = await self.hass.async_add_executor_job(
                         self.api.get_device_shadow, device_id
+                    )
+                    _LOGGER.debug(
+                        "Successfully fetched shadow for device %s", device_id
                     )
                     return device_id, shadow
                 except Exception as err:
@@ -67,11 +74,13 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return device_id, {}
 
             # Fetch all shadows in parallel
+            _LOGGER.debug("Fetching shadows for %d devices", len(self._devices))
             shadow_results = await asyncio.gather(
                 *[fetch_shadow(device_id) for device_id in self._devices.keys()],
                 return_exceptions=False,
             )
             device_shadows = dict(shadow_results)
+            _LOGGER.debug("Fetched %d device shadows", len(device_shadows))
 
             # All diagnostic data is now available in device shadows
             self._device_shadows = device_shadows

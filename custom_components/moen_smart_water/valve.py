@@ -132,15 +132,23 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         self, state: dict, source: str = "coordinator"
     ) -> None:
         """Update valve state and attributes from API data. Shared by coordinator and manual updates."""
+        _LOGGER.debug(
+            "%s UPDATE: Raw state data for device %s: %s",
+            source.upper(),
+            self._device_id,
+            state,
+        )
+
         device_state = state.get("state", "idle")
         flow_rate = state.get("flowRate")
         temperature = state.get("temperature", 20.0)
 
         _LOGGER.debug(
-            "%s UPDATE: device_state=%s, flow_rate=%s",
+            "%s UPDATE: Parsed values - device_state=%s, flow_rate=%s, temperature=%s",
             source.upper(),
             device_state,
             flow_rate,
+            temperature,
         )
 
         # Determine if valve is open based on device state and flow rate
@@ -195,17 +203,24 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         self._attr_temperature = temperature
 
         # Update extra state attributes
-        self._attr_extra_state_attributes.update(
-            {
-                "valve_state": self._attr_state,
-                "faucet_state": device_state,
-                "preset_mode": self._attr_preset_mode,
-                "is_valve_open": is_valve_open,
-                "temperature": temperature,
-                "flow_rate": self._attr_valve_position,
-                "api_flow_rate": flow_rate,
-            }
-        )
+        # Note: The Moen API doesn't report flowRate in the device shadow,
+        # only defaultFlowRate, maxFlowRate, etc. So valve_position is our
+        # best representation of the intended flow rate (0-100%)
+        attributes = {
+            "valve_state": self._attr_state,
+            "faucet_state": device_state,
+            "preset_mode": self._attr_preset_mode,
+            "is_valve_open": is_valve_open,
+            "temperature": f"{temperature} °F",
+            "valve_position": f"{self._attr_valve_position}%",
+        }
+
+        # Only include api_flow_rate if we actually got one from the API
+        # (API typically doesn't include this field in device shadow)
+        if flow_rate is not None and flow_rate != "unknown":
+            attributes["api_flow_rate"] = f"{flow_rate}%"
+
+        self._attr_extra_state_attributes.update(attributes)
 
         _LOGGER.debug(
             "%s UPDATE: Updated state to %s, position=%s",
