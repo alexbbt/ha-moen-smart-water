@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -50,21 +51,27 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for device in devices
             }
 
-            # Get device shadows for all devices (operational data)
-            device_shadows = {}
-            for device_id in self._devices.keys():
+            # Get device shadows for all devices (operational data) in parallel
+            async def fetch_shadow(device_id: str) -> tuple[str, dict[str, Any]]:
+                """Fetch a single device shadow."""
                 try:
-                    # Get device shadow
                     shadow = await self.hass.async_add_executor_job(
                         self.api.get_device_shadow, device_id
                     )
-                    device_shadows[device_id] = shadow
+                    return device_id, shadow
                 except Exception as err:
                     _LOGGER.warning(
                         "Failed to get shadow for device %s: %s", device_id, err
                     )
-                    # Use empty shadow if we can't get it
-                    device_shadows[device_id] = {}
+                    # Return empty shadow if we can't get it
+                    return device_id, {}
+
+            # Fetch all shadows in parallel
+            shadow_results = await asyncio.gather(
+                *[fetch_shadow(device_id) for device_id in self._devices.keys()],
+                return_exceptions=False,
+            )
+            device_shadows = dict(shadow_results)
 
             # All diagnostic data is now available in device shadows
             self._device_shadows = device_shadows
