@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build:
+    name: Code Quality Checks
     runs-on: ubuntu-latest
     strategy:
       matrix:

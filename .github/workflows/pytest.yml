@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    name: PyTest Unit Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
