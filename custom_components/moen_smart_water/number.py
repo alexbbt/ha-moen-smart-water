@@ -34,7 +34,7 @@ TEMPERATURE_NUMBER = NumberEntityDescription(
 
 FLOW_RATE_NUMBER = NumberEntityDescription(
     key="flow_rate",
-    name="Flow Rate",
+    name="Default Flow Rate",
     native_min_value=0,
     native_max_value=100,
     native_step=1,
@@ -126,7 +126,14 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
         if key == "temperature":
             self._attr_native_value = state.get("temperature", 20.0)
         elif key == "flow_rate":
-            self._attr_native_value = state.get("flowRate", 0)
+            # Handle "unknown" values by keeping current value or defaulting to 0
+            flow_rate = state.get("flowRate", 0)
+            if flow_rate == "unknown" or flow_rate is None:
+                # Keep current value if available, otherwise default to 0
+                if self._attr_native_value is None:
+                    self._attr_native_value = 0
+            else:
+                self._attr_native_value = flow_rate
 
         self.async_write_ha_state()
 
@@ -152,7 +159,9 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                 )
                 self._attr_native_value = int(value)
                 _LOGGER.info(
-                    "Set flow rate to %d%% for device %s", int(value), self._device_id
+                    "Set default flow rate (for gesture activation) to %d%% for device %s",
+                    int(value),
+                    self._device_id,
                 )
 
         except Exception as err:

@@ -87,8 +87,8 @@ set_temperature:
           unit_of_measurement: "%"
 
 set_flow_rate:
-  name: Set Flow Rate
-  description: Set the flow rate percentage for the Moen Smart Faucet
+  name: Set Default Flow Rate
+  description: Set the default flow rate percentage for gesture activation (wave hand) on the Moen Smart Faucet
   fields:
     device_id:
       name: Device ID
@@ -98,7 +98,7 @@ set_flow_rate:
         text:
     flow_rate:
       name: Flow Rate
-      description: Flow rate percentage (0-100)
+      description: Default flow rate percentage (0-100) used when activating via gesture
       required: true
       selector:
         number:

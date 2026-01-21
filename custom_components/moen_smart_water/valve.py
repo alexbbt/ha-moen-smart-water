@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -135,7 +136,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         flow_rate = state.get("flowRate")
         temperature = state.get("temperature", 20.0)
 
-        _LOGGER.error(
+        _LOGGER.debug(
             "%s UPDATE: device_state=%s, flow_rate=%s",
             source.upper(),
             device_state,
@@ -147,11 +148,11 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         if source == "coordinator" and self._manual_close_requested:
             is_valve_open = False
             self._manual_close_requested = False  # Reset flag after one update
-            _LOGGER.error("VALVE STATE: Using manual close flag, setting closed")
+            _LOGGER.debug("VALVE STATE: Using manual close flag, setting closed")
         elif source == "coordinator" and self._manual_open_requested:
             is_valve_open = True
             self._manual_open_requested = False  # Reset flag after one update
-            _LOGGER.error("VALVE STATE: Using manual open flag, setting open")
+            _LOGGER.debug("VALVE STATE: Using manual open flag, setting open")
         else:
             # Valve is open if:
             # 1. Device state is "running", OR
@@ -159,7 +160,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             is_valve_open = device_state == "running" or (
                 flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
             )
-            _LOGGER.error(
+            _LOGGER.debug(
                 "VALVE STATE: Using API data, is_valve_open=%s", is_valve_open
             )
 
@@ -169,13 +170,13 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_is_opening = False
             self._attr_is_closing = False
             self._attr_state = "open"
-            _LOGGER.error("VALVE STATE: Setting to OPEN")
+            _LOGGER.debug("VALVE STATE: Setting to OPEN")
         else:
             self._attr_is_closed = True
             self._attr_is_opening = False
             self._attr_is_closing = False
             self._attr_state = "closed"
-            _LOGGER.error("VALVE STATE: Setting to CLOSED")
+            _LOGGER.debug("VALVE STATE: Setting to CLOSED")
 
         # Update valve position (flow rate)
         if is_valve_open:
@@ -206,7 +207,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             }
         )
 
-        _LOGGER.error(
+        _LOGGER.debug(
             "%s UPDATE: Updated state to %s, position=%s",
             source.upper(),
             self._attr_state,
@@ -216,7 +217,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
     async def _manual_update_from_api(self) -> None:
         """Manually update valve state with fresh API data, bypassing coordinator cache."""
         try:
-            _LOGGER.error("MANUAL UPDATE: Getting fresh API data")
+            _LOGGER.debug("MANUAL UPDATE: Getting fresh API data")
             # Get fresh device shadow data directly from API
             shadow = await self.hass.async_add_executor_job(
                 self.coordinator.api.get_device_shadow, self._device_id
@@ -235,11 +236,9 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
     async def _delayed_api_check(self) -> None:
         """Wait a few seconds then check API to confirm valve state."""
-        import asyncio
-
-        _LOGGER.error("DELAYED CHECK: Waiting 3 seconds for API to update...")
+        _LOGGER.debug("DELAYED CHECK: Waiting 3 seconds for API to update...")
         await asyncio.sleep(3)  # Wait 3 seconds for API to catch up
-        _LOGGER.error("DELAYED CHECK: Checking API after delay")
+        _LOGGER.debug("DELAYED CHECK: Checking API after delay")
         await self._manual_update_from_api()
 
     async def async_open_valve(self, **kwargs: Any) -> None:

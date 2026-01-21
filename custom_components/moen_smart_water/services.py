@@ -211,7 +211,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Failed to set temperature for device %s: %s", device_id, err)
 
     async def set_flow_rate(call: ServiceCall) -> None:
-        """Service to set flow rate."""
+        """Service to set default flow rate for gesture activation."""
         device_id = call.data["device_id"]
         flow_rate = call.data["flow_rate"]
 
@@ -237,7 +237,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             await hass.async_add_executor_job(
                 coordinator.api.set_flow_rate, device_id, flow_rate
             )
-            _LOGGER.info("Set flow rate to %d%% for device %s", flow_rate, device_id)
+            _LOGGER.info(
+                "Set default flow rate (for gesture activation) to %d%% for device %s",
+                flow_rate,
+                device_id,
+            )
         except Exception as err:
             _LOGGER.error("Failed to set flow rate for device %s: %s", device_id, err)
 
