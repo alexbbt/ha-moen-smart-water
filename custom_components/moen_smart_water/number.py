@@ -28,7 +28,6 @@ TEMPERATURE_NUMBER = NumberEntityDescription(
     native_max_value=100.0,
     native_step=1.0,
     native_unit_of_measurement="°C",
-    entity_category=EntityCategory.CONFIG,
     icon="mdi:thermometer",
 )
 

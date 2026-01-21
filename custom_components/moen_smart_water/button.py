@@ -28,24 +28,6 @@ STOP_WATER_BUTTON = ButtonEntityDescription(
     icon="mdi:stop",
 )
 
-COLDEST_BUTTON = ButtonEntityDescription(
-    key="coldest",
-    name="Coldest",
-    icon="mdi:snowflake",
-)
-
-WARM_BUTTON = ButtonEntityDescription(
-    key="warm",
-    name="Warm",
-    icon="mdi:thermometer-lines",
-)
-
-HOTTEST_BUTTON = ButtonEntityDescription(
-    key="hottest",
-    name="Hottest",
-    icon="mdi:fire",
-)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -76,9 +58,6 @@ async def async_setup_entry(
             [
                 MoenButton(coordinator, device_id, device_name, START_WATER_BUTTON),
                 MoenButton(coordinator, device_id, device_name, STOP_WATER_BUTTON),
-                MoenButton(coordinator, device_id, device_name, COLDEST_BUTTON),
-                MoenButton(coordinator, device_id, device_name, WARM_BUTTON),
-                MoenButton(coordinator, device_id, device_name, HOTTEST_BUTTON),
             ]
         )
 
@@ -131,30 +110,6 @@ class MoenButton(CoordinatorEntity, ButtonEntity):
                     self.coordinator.api.stop_water_flow, self._device_id
                 )
                 _LOGGER.info("Stopped water flow for device %s", self._device_id)
-
-            elif key == "coldest":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_coldest,
-                    self._device_id,
-                    100,  # Full flow rate
-                )
-                _LOGGER.info("Set coldest temperature for device %s", self._device_id)
-
-            elif key == "warm":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_warm,
-                    self._device_id,
-                    100,  # Full flow rate
-                )
-                _LOGGER.info("Set warm temperature for device %s", self._device_id)
-
-            elif key == "hottest":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_hottest,
-                    self._device_id,
-                    100,  # Full flow rate
-                )
-                _LOGGER.info("Set hottest temperature for device %s", self._device_id)
 
         except Exception as err:
             _LOGGER.error(
