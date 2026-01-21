@@ -35,7 +35,7 @@ TEMPERATURE_NUMBER = NumberEntityDescription(
 )
 
 FLOW_RATE_NUMBER = NumberEntityDescription(
-    key="flow_rate",
+    key="default_flow_rate",
     name="Default Flow Rate",
     native_min_value=0,
     native_max_value=100,
@@ -155,15 +155,16 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
             # If device is running or goal is not specific,
             # temperature is measured temp, don't update slider
             # (keep current setpoint value)
-        elif key == "flow_rate":
-            # Handle "unknown" values by keeping current value or defaulting to 0
-            flow_rate = state.get("flowRate", 0)
-            if flow_rate == "unknown" or flow_rate is None:
+        elif key == "default_flow_rate":
+            # Get defaultFlowRate from shadow (the configured rate for gesture activation)
+            # Note: flowRate only exists when water is actively running
+            default_flow_rate = state.get("defaultFlowRate", 0)
+            if default_flow_rate == "unknown" or default_flow_rate is None:
                 # Keep current value if available, otherwise default to 0
                 if self._attr_native_value is None:
                     self._attr_native_value = 0
             else:
-                self._attr_native_value = flow_rate
+                self._attr_native_value = default_flow_rate
 
         self.async_write_ha_state()
 
@@ -228,7 +229,7 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                 await asyncio.sleep(1)  # Give API a moment to update
                 await self.coordinator.async_request_refresh()
 
-            elif key == "flow_rate":
+            elif key == "default_flow_rate":
                 await self.hass.async_add_executor_job(
                     self.coordinator.api.set_default_flow_rate,
                     self._device_id,

@@ -140,15 +140,21 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         )
 
         device_state = state.get("state", "idle")
-        flow_rate = state.get("flowRate")
-        temperature = state.get("temperature", 20.0)
+        # flowRate is only present when water is actively running
+        # When idle, use defaultFlowRate to show what rate will be used when opened
+        flow_rate = state.get("flowRate") or state.get("defaultFlowRate")
+        temperature_celsius = state.get("temperature", 20.0)
+
+        # Convert Celsius to Fahrenheit: F = (C * 9/5) + 32
+        temperature_fahrenheit = (temperature_celsius * 9 / 5) + 32
 
         _LOGGER.debug(
-            "%s UPDATE: Parsed values - device_state=%s, flow_rate=%s, temperature=%s",
+            "%s UPDATE: Parsed values - device_state=%s, flow_rate=%s, temperature=%s°C (%.1f°F)",
             source.upper(),
             device_state,
             flow_rate,
-            temperature,
+            temperature_celsius,
+            temperature_fahrenheit,
         )
 
         # Determine if valve is open based on device state and flow rate
@@ -187,31 +193,28 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             _LOGGER.debug("VALVE STATE: Setting to CLOSED")
 
         # Update valve position (flow rate)
-        if is_valve_open:
-            if flow_rate is not None and flow_rate != "unknown":
-                # Get flow rate from API and map it to valve position (0-100%)
-                self._attr_valve_position = int(flow_rate)
-            elif device_state == "running":
-                # If device is running but no flow rate data, assume 100%
-                self._attr_valve_position = 100
-            # If valve is open but no flow rate data, keep current position
-        else:
-            # When valve is closed, set position to 0
+        if flow_rate is not None and flow_rate != "unknown":
+            # Use flow rate from API (either active flowRate or defaultFlowRate)
+            self._attr_valve_position = int(flow_rate)
+
+        # If valve is closed and we have no flow rate data, set position to 0
+        if not is_valve_open and (flow_rate is None or flow_rate == "unknown"):
             self._attr_valve_position = 0
 
-        # Update temperature
-        self._attr_temperature = temperature
+        # Update temperature (store in Fahrenheit)
+        self._attr_temperature = temperature_fahrenheit
 
         # Update extra state attributes
-        # Note: The Moen API doesn't report flowRate in the device shadow,
-        # only defaultFlowRate, maxFlowRate, etc. So valve_position is our
-        # best representation of the intended flow rate (0-100%)
+        # Note: The Moen API reports flowRate when actively running, otherwise
+        # it reports defaultFlowRate (the rate used for gesture activation).
+        # valve_position represents the current or default flow rate (0-100%)
         attributes = {
             "valve_state": self._attr_state,
             "faucet_state": device_state,
             "preset_mode": self._attr_preset_mode,
             "is_valve_open": is_valve_open,
-            "temperature": f"{temperature} °F",
+            "temperature": f"{temperature_fahrenheit:.1f} °F",
+            "temperature_celsius": f"{temperature_celsius:.1f} °C",
             "valve_position": f"{self._attr_valve_position}%",
         }
 
