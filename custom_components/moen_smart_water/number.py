@@ -177,16 +177,17 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
 
         try:
             if key == "temperature":
-                # Get current flow rate from device state to preserve it
+                # Get device state to determine if water is running
                 shadow = self.coordinator.get_device_shadow(self._device_id)
                 if not shadow:
+                    device_state = "idle"
                     current_flow_rate = 100
                 else:
                     reported = shadow.get("state", {}).get("reported", {})
                     desired = shadow.get("state", {}).get("desired", {})
                     device_state = reported.get("state", "idle")
 
-                    # Determine current flow rate:
+                    # Determine current flow rate (only needed if device is running)
                     # 1. Check desired state for active flowRate (what was last commanded)
                     # 2. Otherwise, use defaultFlowRate from reported state (configured default)
                     # 3. Fall back to 100 if neither is available
@@ -202,64 +203,76 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                         else:
                             current_flow_rate = 100
 
-                _LOGGER.debug(
-                    "Temperature change: preserving flow rate of %d%% (device_state=%s, from %s)",
-                    current_flow_rate,
-                    device_state,
-                    "desired.flowRate"
-                    if active_flow_rate
-                    else "reported.defaultFlowRate",
-                )
-
                 # Get current min/max values
                 min_temp = self._attr_native_min_value
                 max_temp = self._attr_native_max_value
 
+                # Determine temperature setting to use
                 # Check if value is at min (coldest) or max (hottest)
                 # Use a small tolerance (0.1°C) to account for floating point precision
                 if abs(value - min_temp) < 0.1:
-                    # Set to coldest
-                    await self.hass.async_add_executor_job(
-                        self.coordinator.api.set_coldest,
-                        self._device_id,
-                        current_flow_rate,
-                    )
-                    self._attr_native_value = min_temp
-                    _LOGGER.info(
-                        "Set temperature to coldest (%.1f°C) with %d%% flow rate for device %s",
-                        min_temp,
-                        current_flow_rate,
-                        self._device_id,
-                    )
+                    temp_setting = "coldest"
+                    temp_value = min_temp
                 elif abs(value - max_temp) < 0.1:
-                    # Set to hottest
-                    await self.hass.async_add_executor_job(
-                        self.coordinator.api.set_hottest,
-                        self._device_id,
+                    temp_setting = "hottest"
+                    temp_value = max_temp
+                else:
+                    temp_setting = value  # Specific temperature
+                    temp_value = value
+
+                # If device is running, update temperature and maintain water flow
+                # If device is idle, just update the temperature setting for next time
+                if device_state == "running":
+                    _LOGGER.debug(
+                        "Temperature change while running: applying immediately with flow rate %d%%",
                         current_flow_rate,
                     )
-                    self._attr_native_value = max_temp
+                    # Device is running - update temperature and keep water flowing
+                    if temp_setting == "coldest":
+                        await self.hass.async_add_executor_job(
+                            self.coordinator.api.set_coldest,
+                            self._device_id,
+                            current_flow_rate,
+                        )
+                    elif temp_setting == "hottest":
+                        await self.hass.async_add_executor_job(
+                            self.coordinator.api.set_hottest,
+                            self._device_id,
+                            current_flow_rate,
+                        )
+                    else:
+                        await self.hass.async_add_executor_job(
+                            self.coordinator.api.set_specific_temperature,
+                            self._device_id,
+                            temp_setting,
+                            current_flow_rate,
+                        )
                     _LOGGER.info(
-                        "Set temperature to hottest (%.1f°C) with %d%% flow rate for device %s",
-                        max_temp,
+                        "Updated temperature to %s (%.1f°C) while running at %d%% for device %s",
+                        temp_setting,
+                        temp_value,
                         current_flow_rate,
                         self._device_id,
                     )
                 else:
-                    # Set specific temperature
+                    _LOGGER.debug(
+                        "Temperature change while idle: setting for next water flow"
+                    )
+                    # Device is idle - just update the temperature setting without starting water
+                    # Use update_device_settings to set temperature without "command": "run"
                     await self.hass.async_add_executor_job(
-                        self.coordinator.api.set_specific_temperature,
+                        self.coordinator.api.update_device_settings,
                         self._device_id,
-                        value,
-                        current_flow_rate,
+                        {"temperature": temp_setting},
                     )
-                    self._attr_native_value = value
                     _LOGGER.info(
-                        "Set temperature to %.1f°C with %d%% flow rate for device %s",
-                        value,
-                        current_flow_rate,
+                        "Set temperature to %s (%.1f°C) for next water flow for device %s",
+                        temp_setting,
+                        temp_value,
                         self._device_id,
                     )
+
+                self._attr_native_value = temp_value
 
                 # Write state immediately for responsive UI
                 self.async_write_ha_state()
