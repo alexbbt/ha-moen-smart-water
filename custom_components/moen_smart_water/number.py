@@ -37,8 +37,8 @@ TEMPERATURE_NUMBER = NumberEntityDescription(
 FLOW_RATE_NUMBER = NumberEntityDescription(
     key="default_flow_rate",
     name="Default Flow Rate",
-    native_min_value=0,
-    native_max_value=100,
+    native_min_value=10,  # Will be updated from device trickleFlowRate
+    native_max_value=100,  # Will be updated from device maxFlowRate
     native_step=1,
     native_unit_of_measurement="%",
     entity_category=EntityCategory.CONFIG,
@@ -107,6 +107,9 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
             # Min/max will be set from device shadow data
             self._attr_native_min_value = 0.0
             self._attr_native_max_value = 100.0
+        elif description.key == "default_flow_rate":
+            # Default to trickle flow rate (will be updated from device shadow)
+            self._attr_native_value = 10
         else:
             self._attr_native_value = 0
 
@@ -158,11 +161,11 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
         elif key == "default_flow_rate":
             # Get defaultFlowRate from shadow (the configured rate for gesture activation)
             # Note: flowRate only exists when water is actively running
-            default_flow_rate = state.get("defaultFlowRate", 0)
+            default_flow_rate = state.get("defaultFlowRate", 10)
             if default_flow_rate == "unknown" or default_flow_rate is None:
-                # Keep current value if available, otherwise default to 0
+                # Keep current value if available, otherwise default to 10 (trickle flow rate)
                 if self._attr_native_value is None:
-                    self._attr_native_value = 0
+                    self._attr_native_value = 10
             else:
                 self._attr_native_value = default_flow_rate
 
