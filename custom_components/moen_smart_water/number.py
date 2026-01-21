@@ -135,9 +135,6 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
             if setpoint_cold is not None and setpoint_hot is not None:
                 self._attr_native_min_value = float(setpoint_cold)
                 self._attr_native_max_value = float(setpoint_hot)
-                # Update the entity description min/max for UI
-                self.entity_description.native_min_value = self._attr_native_min_value
-                self.entity_description.native_max_value = self._attr_native_max_value
         elif key == "flow_rate":
             # Handle "unknown" values by keeping current value or defaulting to 0
             flow_rate = state.get("flowRate", 0)

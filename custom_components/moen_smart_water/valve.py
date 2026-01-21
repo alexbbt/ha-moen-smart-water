@@ -281,11 +281,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             # Update valve position to reflect actual flow rate
             self._attr_valve_position = flow_rate
 
-            # Set valve to "opening" state immediately for visual feedback
+            # Set valve to "open" state immediately (optimistic update)
+            # This keeps the toggle visible in the UI
             self._attr_is_closed = False
-            self._attr_is_opening = True
+            self._attr_is_opening = False
             self._attr_is_closing = False
-            self._attr_state = "opening"
+            self._attr_state = "open"
             self.async_write_ha_state()
 
             # Set manual flag and check API after delay
@@ -309,11 +310,13 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 self.coordinator.api.stop_water_flow, self._device_id
             )
 
-            # Set valve to "closing" state immediately for visual feedback
-            self._attr_is_closed = False
+            # Set valve to "closed" state immediately (optimistic update)
+            # This keeps the toggle visible in the UI
+            self._attr_is_closed = True
             self._attr_is_opening = False
-            self._attr_is_closing = True
-            self._attr_state = "closing"
+            self._attr_is_closing = False
+            self._attr_state = "closed"
+            self._attr_valve_position = 0
             self.async_write_ha_state()
 
             # Set manual flag and check API after delay
@@ -358,11 +361,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.stop_water_flow, self._device_id
                     )
-                    # Set valve to "closing" state immediately for visual feedback
-                    self._attr_is_closed = False
+                    # Set valve to "closed" state immediately (optimistic update)
+                    # This keeps the toggle visible in the UI
+                    self._attr_is_closed = True
                     self._attr_is_opening = False
-                    self._attr_is_closing = True
-                    self._attr_state = "closing"
+                    self._attr_is_closing = False
+                    self._attr_state = "closed"
                     self.async_write_ha_state()
 
                     # Check API after delay
@@ -388,11 +392,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     int(position),
                 )
 
-                # Set valve to "opening" state immediately for visual feedback
+                # Set valve to "open" state immediately (optimistic update)
+                # This keeps the toggle visible in the UI
                 self._attr_is_closed = False
-                self._attr_is_opening = True
+                self._attr_is_opening = False
                 self._attr_is_closing = False
-                self._attr_state = "opening"
+                self._attr_state = "open"
                 self.async_write_ha_state()
 
                 # Check API after delay
