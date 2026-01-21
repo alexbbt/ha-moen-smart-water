@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
