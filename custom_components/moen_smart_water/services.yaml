@@ -35,22 +35,24 @@ stop_dispensing:
   description: Stop dispensing water from the Moen Smart Faucet
   fields:
     device_id:
-      name: Device ID
-      description: The device ID of the Moen Smart Faucet
+      name: Device
+      description: The Moen Smart Faucet device
       required: true
       selector:
-        text:
+        device:
+          integration: moen_smart_water
 
 get_device_status:
   name: Get Device Status
   description: Get the current status and shadow data for a Moen Smart Faucet device
   fields:
     device_id:
-      name: Device ID
-      description: The device ID of the Moen Smart Faucet
+      name: Device
+      description: The Moen Smart Faucet device
       required: true
       selector:
-        text:
+        device:
+          integration: moen_smart_water
 
 get_user_profile:
   name: Get User Profile
@@ -62,11 +64,12 @@ set_temperature:
   description: Set the water temperature for the Moen Smart Faucet
   fields:
     device_id:
-      name: Device ID
-      description: The device ID of the Moen Smart Faucet
+      name: Device
+      description: The Moen Smart Faucet device
       required: true
       selector:
-        text:
+        device:
+          integration: moen_smart_water
     temperature:
       name: Temperature
       description: Water temperature in Celsius
@@ -92,11 +95,12 @@ set_default_flow_rate:
   description: Set the default flow rate percentage for gesture activation (wave hand) on the Moen Smart Faucet
   fields:
     device_id:
-      name: Device ID
-      description: The device ID of the Moen Smart Faucet
+      name: Device
+      description: The Moen Smart Faucet device
       required: true
       selector:
-        text:
+        device:
+          integration: moen_smart_water
     default_flow_rate:
       name: Default Flow Rate
       description: Default flow rate percentage (0-100) used when activating via gesture

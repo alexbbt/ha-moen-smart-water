@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-__version__ = "0.13.1"
+__version__ = "0.14.0"
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -79,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Forward the setup to the platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Set up services
+    # Set up actions
     await async_setup_services(hass)
 
     return True

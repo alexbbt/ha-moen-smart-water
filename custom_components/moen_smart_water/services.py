@@ -1,4 +1,4 @@
-"""Services for Moen Smart Water integration."""
+"""Actions for Moen Smart Water integration."""
 
 from __future__ import annotations
 
@@ -54,11 +54,11 @@ SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA = vol.Schema(
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
-    """Set up the services for Moen Smart Water integration."""
-    _LOGGER.info("Setting up Moen Smart Water services")
+    """Set up the actions for Moen Smart Water integration."""
+    _LOGGER.info("Setting up Moen Smart Water actions")
 
     async def dispense_water(call: ServiceCall) -> None:
-        """Service to dispense water from the faucet."""
+        """Action to dispense water from the faucet."""
         device_id = call.data["device_id"]
         # Note: volume_ml and timeout are available but not used in current implementation
         # call.data["volume_ml"]
@@ -91,7 +91,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Failed to dispense water from device %s: %s", device_id, err)
 
     async def stop_dispensing(call: ServiceCall) -> None:
-        """Service to stop dispensing water from the faucet."""
+        """Action to stop dispensing water from the faucet."""
         device_id = call.data["device_id"]
 
         # Find the coordinator for this device
@@ -123,7 +123,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             )
 
     async def get_device_status(call: ServiceCall) -> None:
-        """Service to get device status."""
+        """Action to get device status."""
         device_id = call.data["device_id"]
 
         # Find the coordinator for this device
@@ -151,7 +151,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Failed to get status for device %s: %s", device_id, err)
 
     async def get_user_profile(call: ServiceCall) -> None:
-        """Service to get user profile."""
+        """Action to get user profile."""
         # Find any coordinator (they all have the same user profile)
         coordinator = None
         for _entry_id, entry_coordinator in hass.data.get(
@@ -174,7 +174,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Failed to get user profile: %s", err)
 
     async def set_temperature(call: ServiceCall) -> None:
-        """Service to set water temperature."""
+        """Action to set water temperature."""
         device_id = call.data["device_id"]
         temperature = call.data["temperature"]
         flow_rate = call.data["flow_rate"]
@@ -211,7 +211,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Failed to set temperature for device %s: %s", device_id, err)
 
     async def set_default_flow_rate(call: ServiceCall) -> None:
-        """Service to set default flow rate for gesture activation."""
+        """Action to set default flow rate for gesture activation."""
         device_id = call.data["device_id"]
         default_flow_rate = call.data["default_flow_rate"]
 
@@ -247,7 +247,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 "Failed to set default flow rate for device %s: %s", device_id, err
             )
 
-    # Register services
+    # Register actions
     try:
         hass.services.async_register(
             "moen_smart_water",
@@ -291,7 +291,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             schema=SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA,
         )
 
-        _LOGGER.info("Successfully registered all Moen Smart Water services")
+        _LOGGER.info("Successfully registered all Moen Smart Water actions")
     except Exception as err:
-        _LOGGER.error("Failed to register Moen Smart Water services: %s", err)
+        _LOGGER.error("Failed to register Moen Smart Water actions: %s", err)
         raise

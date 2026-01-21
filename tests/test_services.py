@@ -1,4 +1,4 @@
-"""Tests for Moen Smart Water services."""
+"""Tests for Moen Smart Water actions."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from custom_components.moen_smart_water.services import (
 
 
 class TestServiceSchemas:
-    """Test service schemas."""
+    """Test action schemas."""
 
     def test_dispense_service_schema(self) -> None:
-        """Test dispense water service schema."""
+        """Test dispense water action schema."""
         assert DISPENSE_SERVICE_SCHEMA is not None
 
         # Test valid data
@@ -39,7 +39,7 @@ class TestServiceSchemas:
         assert result["timeout"] == 120  # Default
 
     def test_stop_dispense_service_schema(self) -> None:
-        """Test stop dispensing service schema."""
+        """Test stop dispensing action schema."""
         assert STOP_DISPENSE_SERVICE_SCHEMA is not None
 
         valid_data = {"device_id": "test_device"}
@@ -47,7 +47,7 @@ class TestServiceSchemas:
         assert result["device_id"] == "test_device"
 
     def test_get_status_service_schema(self) -> None:
-        """Test get device status service schema."""
+        """Test get device status action schema."""
         assert GET_STATUS_SERVICE_SCHEMA is not None
 
         valid_data = {"device_id": "test_device"}
@@ -55,7 +55,7 @@ class TestServiceSchemas:
         assert result["device_id"] == "test_device"
 
     def test_get_user_profile_service_schema(self) -> None:
-        """Test get user profile service schema."""
+        """Test get user profile action schema."""
         assert GET_USER_PROFILE_SERVICE_SCHEMA is not None
 
         # Schema accepts empty dict
@@ -63,7 +63,7 @@ class TestServiceSchemas:
         assert result == {}
 
     def test_set_temperature_service_schema(self) -> None:
-        """Test set temperature service schema."""
+        """Test set temperature action schema."""
         assert SET_TEMPERATURE_SERVICE_SCHEMA is not None
 
         valid_data = {
@@ -82,7 +82,7 @@ class TestServiceSchemas:
         assert result["flow_rate"] == 100  # Default
 
     def test_set_default_flow_rate_service_schema(self) -> None:
-        """Test set default flow rate service schema."""
+        """Test set default flow rate action schema."""
         assert SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA is not None
 
         valid_data = {

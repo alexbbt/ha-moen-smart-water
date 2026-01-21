@@ -71,7 +71,7 @@
   - Battery percentage
   - Firmware Version
   - Last Connect (timestamp)
-- **Services**: Programmatic control via Home Assistant services
+- **Actions**: Programmatic control via Home Assistant actions
 
 ## Advanced Configuration
 
@@ -178,51 +178,54 @@ Example entity names:
 - `sensor.kitchen_faucet_battery`
 - `sensor.kitchen_faucet_wifi_signal`
 
-### Services
+### Actions
 
-You can also control the faucet programmatically using services:
+You can also control the faucet programmatically using actions:
 
 ```yaml
 # Dispense water with specific volume
-service: moen_smart_water.dispense_water
+action: moen_smart_water.dispense_water
+target:
+  device_id: "your_device_id"  # Or use the device picker in the UI
 data:
-  device_id: "your_device_id"
   volume_ml: 500  # Optional, 50-2000ml
   timeout: 120    # Optional, 10-300s
 
 # Stop dispensing
-service: moen_smart_water.stop_dispensing
-data:
+action: moen_smart_water.stop_dispensing
+target:
   device_id: "your_device_id"
 
 # Set temperature
-service: moen_smart_water.set_temperature
-data:
+action: moen_smart_water.set_temperature
+target:
   device_id: "your_device_id"
+data:
   temperature: 25  # Temperature in Celsius
   flow_rate: 100   # Optional, 0-100%
 
 # Set default flow rate (for gesture activation)
-service: moen_smart_water.set_default_flow_rate
-data:
+action: moen_smart_water.set_default_flow_rate
+target:
   device_id: "your_device_id"
+data:
   default_flow_rate: 50  # 0-100%
 
 # Get device status
-service: moen_smart_water.get_device_status
-data:
+action: moen_smart_water.get_device_status
+target:
   device_id: "your_device_id"
 
 # Get user profile
-service: moen_smart_water.get_user_profile
+action: moen_smart_water.get_user_profile
 ```
 
 > [!TIP]
-> **Finding Your Device ID:**
-> * Check the Home Assistant logs after integration setup
-> * Look for device discovery messages
-> * Use the `moen_smart_water.get_device_status` service to list available devices
+> **Selecting Your Device:**
+> * In the Home Assistant UI, you can use the device picker to select your faucet
+> * In YAML, you can reference the device by its device_id
 > * Device ID is visible in the device information page in Home Assistant
+> * Use the `moen_smart_water.get_device_status` action to check device status
 
 ### Automations
 
@@ -236,7 +239,7 @@ Example automations for common use cases:
       entity_id: binary_sensor.kitchen_motion
       to: "on"
   action:
-    - service: valve.open_valve
+    - action: valve.open_valve
       target:
         entity_id: valve.kitchen_faucet_water_control
 
@@ -247,9 +250,10 @@ Example automations for common use cases:
       entity_id: input_boolean.make_coffee
       to: "on"
   action:
-    - service: moen_smart_water.dispense_water
-      data:
+    - action: moen_smart_water.dispense_water
+      target:
         device_id: "your_device_id"
+      data:
         volume_ml: 500
         timeout: 120
 
@@ -259,7 +263,7 @@ Example automations for common use cases:
     - platform: time
       at: "07:00:00"
   action:
-    - service: number.set_value
+    - action: number.set_value
       target:
         entity_id: number.kitchen_faucet_temperature
       data:
@@ -272,7 +276,7 @@ Example automations for common use cases:
       entity_id: input_boolean.gentle_mode
       to: "on"
   action:
-    - service: valve.set_valve_position
+    - action: valve.set_valve_position
       target:
         entity_id: valve.kitchen_faucet_water_control
       data:
