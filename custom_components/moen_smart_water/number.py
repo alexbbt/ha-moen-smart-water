@@ -6,6 +6,7 @@ import asyncio
 import logging
 
 from homeassistant.components.number import (
+    NumberDeviceClass,
     NumberEntity,
     NumberEntityDescription,
     NumberMode,
@@ -25,6 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 TEMPERATURE_NUMBER = NumberEntityDescription(
     key="temperature",
     name="Temperature",
+    device_class=NumberDeviceClass.TEMPERATURE,
     native_min_value=0.0,
     native_max_value=100.0,
     native_step=1.0,
@@ -127,15 +129,31 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
         key = self.entity_description.key
 
         if key == "temperature":
-            # Update current temperature value
-            self._attr_native_value = state.get("temperature", 20.0)
-            # Update min/max from device setpoints
-            setpoint_cold = state.get("setpointColdTemp", 0.0)
-            setpoint_hot = state.get("setpointHotTemp", 100.0)
+            # Update min/max from device learned temperature range
+            learned_min = state.get("learnedMinTemp", 0.0)
+            learned_max = state.get("learnedMaxTemp", 100.0)
             # Ensure we have valid values
-            if setpoint_cold is not None and setpoint_hot is not None:
-                self._attr_native_min_value = float(setpoint_cold)
-                self._attr_native_max_value = float(setpoint_hot)
+            if learned_min is not None and learned_max is not None:
+                self._attr_native_min_value = float(learned_min)
+                self._attr_native_max_value = float(learned_max)
+
+            # Update temperature value from API
+            # When temperatureGoal is "specific", the temperature field represents
+            # the goal/setpoint the device is trying to reach
+            temperature_goal = state.get("temperatureGoal")
+            device_state = state.get("state", "idle")
+
+            # If temperatureGoal is "specific" and device is idle,
+            # temperature field represents the setpoint/goal
+            # Otherwise, it's the actual measured temperature
+            if temperature_goal == "specific" and device_state == "idle":
+                api_temp = state.get("temperature")
+                if api_temp is not None:
+                    # Round to 1 decimal place for cleaner display
+                    self._attr_native_value = round(float(api_temp), 1)
+            # If device is running or goal is not specific,
+            # temperature is measured temp, don't update slider
+            # (keep current setpoint value)
         elif key == "flow_rate":
             # Handle "unknown" values by keeping current value or defaulting to 0
             flow_rate = state.get("flowRate", 0)
@@ -203,7 +221,8 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                 # Write state immediately for responsive UI
                 self.async_write_ha_state()
 
-                # Request coordinator refresh to update from API
+                # Request coordinator refresh to update other entities (like valve)
+                # But we'll preserve our set value in the coordinator update handler
                 # Wait a moment for API to process the change, then refresh
                 await asyncio.sleep(1)  # Give API a moment to update
                 await self.coordinator.async_request_refresh()
