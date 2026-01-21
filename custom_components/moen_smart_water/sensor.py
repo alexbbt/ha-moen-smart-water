@@ -44,6 +44,14 @@ LAST_DISPENSE_VOLUME_SENSOR = SensorEntityDescription(
     icon="mdi:cup-water",
 )
 
+WATER_USAGE_SENSOR = SensorEntityDescription(
+    key="water_usage",
+    name="Water Usage",
+    native_unit_of_measurement="L",
+    device_class=SensorDeviceClass.VOLUME,
+    icon="mdi:water",
+)
+
 # Diagnostic sensors
 API_STATUS_SENSOR = SensorEntityDescription(
     key="api_status",
@@ -134,6 +142,7 @@ async def async_setup_entry(
                 MoenSensor(
                     coordinator, device_id, device_name, LAST_DISPENSE_VOLUME_SENSOR
                 ),
+                MoenSensor(coordinator, device_id, device_name, WATER_USAGE_SENSOR),
                 MoenSensor(coordinator, device_id, device_name, TEMPERATURE_SENSOR),
             ]
         )
@@ -217,6 +226,14 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
             volume_ul = state.get("volume")
             if volume_ul is not None:
                 self._attr_native_value = volume_ul / 1000.0
+            else:
+                self._attr_native_value = None
+        elif key == "water_usage":
+            # Cumulative water usage from device shadow
+            # Convert from μL to L for better readability (divide by 1,000,000)
+            volume_ul = state.get("volume")
+            if volume_ul is not None:
+                self._attr_native_value = volume_ul / 1000000.0
             else:
                 self._attr_native_value = None
         elif key == "temperature":

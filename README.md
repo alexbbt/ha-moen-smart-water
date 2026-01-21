@@ -60,6 +60,7 @@
   - Default Temperature mode for gesture activation (Handle Position, Coldest, Equal Mix)
 - **Sensors**:
   - Faucet state
+  - Water usage (cumulative total)
   - Last dispense volume
   - Current temperature
   - API Status
@@ -157,7 +158,7 @@ The integration automatically detects and creates entities for:
 - **Buttons**: Start Water, Stop Water
 - **Numbers**: Temperature control (0-100°C), Default Flow Rate (10-100%)
 - **Select**: Default Temperature mode (Handle Position, Coldest, Equal Mix)
-- **Sensors**: Faucet state, Temperature, Last dispense volume, API status, WiFi info, Battery, Firmware, Timestamps
+- **Sensors**: Faucet state, Water usage, Temperature, Last dispense volume, API status, WiFi info, Battery, Firmware, Timestamps
 
 > [!NOTE]
 > Only entities available on your specific faucet model will be created. The integration queries your Moen account and only adds entities for faucets that are detected.
@@ -170,6 +171,7 @@ Example entity names:
 - `number.kitchen_faucet_default_flow_rate`
 - `select.kitchen_faucet_default_temperature`
 - `sensor.kitchen_faucet_faucet_state`
+- `sensor.kitchen_faucet_water_usage`
 - `sensor.kitchen_faucet_temperature`
 - `sensor.kitchen_faucet_last_dispense_volume`
 - `sensor.kitchen_faucet_api_status`

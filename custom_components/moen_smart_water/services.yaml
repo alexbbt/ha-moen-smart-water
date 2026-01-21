@@ -3,11 +3,12 @@ dispense_water:
   description: Start dispensing water from the Moen Smart Faucet
   fields:
     device_id:
-      name: Device ID
-      description: The device ID of the Moen Smart Faucet
+      name: Device
+      description: The Moen Smart Faucet device
       required: true
       selector:
-        text:
+        device:
+          integration: moen_smart_water
     volume_ml:
       name: Volume (ml)
       description: Volume of water to dispense in milliliters
