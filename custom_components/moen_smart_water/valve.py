@@ -127,13 +127,20 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         """Return the current state of the valve."""
         return self._attr_state
 
-    def _update_valve_state_from_data(self, state: dict, source: str = "coordinator") -> None:
+    def _update_valve_state_from_data(
+        self, state: dict, source: str = "coordinator"
+    ) -> None:
         """Update valve state and attributes from API data. Shared by coordinator and manual updates."""
         device_state = state.get("state", "idle")
         flow_rate = state.get("flowRate")
         temperature = state.get("temperature", 20.0)
 
-        _LOGGER.error("%s UPDATE: device_state=%s, flow_rate=%s", source.upper(), device_state, flow_rate)
+        _LOGGER.error(
+            "%s UPDATE: device_state=%s, flow_rate=%s",
+            source.upper(),
+            device_state,
+            flow_rate,
+        )
 
         # Determine if valve is open based on device state and flow rate
         # If we manually changed the valve state, respect that until API confirms
@@ -152,7 +159,9 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             is_valve_open = device_state == "running" or (
                 flow_rate is not None and flow_rate != "unknown" and flow_rate > 0
             )
-            _LOGGER.error("VALVE STATE: Using API data, is_valve_open=%s", is_valve_open)
+            _LOGGER.error(
+                "VALVE STATE: Using API data, is_valve_open=%s", is_valve_open
+            )
 
         # Update valve state attributes
         if is_valve_open:
@@ -197,7 +206,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             }
         )
 
-        _LOGGER.error("%s UPDATE: Updated state to %s, position=%s", source.upper(), self._attr_state, self._attr_valve_position)
+        _LOGGER.error(
+            "%s UPDATE: Updated state to %s, position=%s",
+            source.upper(),
+            self._attr_state,
+            self._attr_valve_position,
+        )
 
     async def _manual_update_from_api(self) -> None:
         """Manually update valve state with fresh API data, bypassing coordinator cache."""
@@ -222,6 +236,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
     async def _delayed_api_check(self) -> None:
         """Wait a few seconds then check API to confirm valve state."""
         import asyncio
+
         _LOGGER.error("DELAYED CHECK: Waiting 3 seconds for API to update...")
         await asyncio.sleep(3)  # Wait 3 seconds for API to catch up
         _LOGGER.error("DELAYED CHECK: Checking API after delay")

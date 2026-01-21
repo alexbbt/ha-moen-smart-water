@@ -63,7 +63,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             device_count = 0
 
         return {
-            "title": f"Moen Smart Water ({user_profile.get('firstName', 'User')} - {device_count} devices)",
+            "title": "Moen Smart Water",
             "user_profile": user_profile,
             "device_count": device_count,
             "tokens": api.get_tokens(),

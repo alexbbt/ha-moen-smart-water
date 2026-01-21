@@ -1,6 +1,6 @@
 {
   "domain": "moen_smart_water",
-  "name": "Moen Smart Water (Unofficial)",
+  "name": "Moen Smart Water",
   "codeowners": ["@alexbbt"],
   "config_flow": true,
   "dependencies": [],

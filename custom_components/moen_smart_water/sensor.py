@@ -29,13 +29,6 @@ TEMPERATURE_SENSOR = SensorEntityDescription(
     icon="mdi:thermometer",
 )
 
-FLOW_RATE_SENSOR = SensorEntityDescription(
-    key="flow_rate",
-    name="Flow Rate",
-    native_unit_of_measurement="%",
-    icon="mdi:water-percent",
-)
-
 FAUCET_STATE_SENSOR = SensorEntityDescription(
     key="faucet_state",
     name="Faucet State",
@@ -141,7 +134,6 @@ async def async_setup_entry(
                     coordinator, device_id, device_name, LAST_DISPENSE_VOLUME_SENSOR
                 ),
                 MoenSensor(coordinator, device_id, device_name, TEMPERATURE_SENSOR),
-                MoenSensor(coordinator, device_id, device_name, FLOW_RATE_SENSOR),
             ]
         )
 
@@ -195,7 +187,6 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         # Numeric sensors should start with None to avoid ValueError
         if description.key in [
             "temperature",
-            "flow_rate",
             "battery_percentage",
             "wifi_rssi",
             "last_dispense_volume",
@@ -239,17 +230,17 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
                 self._attr_native_value = None
         elif key == "temperature":
             self._attr_native_value = state.get("temperature")
-        elif key == "flow_rate":
-            # Handle "unknown" values by setting to None
-            flow_rate = state.get("flowRate")
-            self._attr_native_value = None if flow_rate == "unknown" else flow_rate
         elif key == "api_status":
             if shadow:
                 # Use actual API values for connected and state from shadow
                 connected = state.get("connected", False)
                 device_state = state.get("state", "unknown")
-                _LOGGER.error("API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s",
-                             connected, device_state, state)
+                _LOGGER.error(
+                    "API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s",
+                    connected,
+                    device_state,
+                    state,
+                )
                 if connected:
                     self._attr_native_value = f"Connected - {device_state.title()}"
                 else:
