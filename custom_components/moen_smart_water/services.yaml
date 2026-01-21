@@ -1,8 +1,7 @@
 start_water:
   name: Start Water
   description: Start water flow with specified temperature and flow rate (runs until manually stopped)
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
@@ -32,8 +31,7 @@ start_water:
 dispense_volume:
   name: Dispense Volume
   description: Dispense a specific volume of water (wave hand to start, auto-stops when volume reached)
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
@@ -79,8 +77,7 @@ dispense_volume:
 stop_water:
   name: Stop Water
   description: Stop water flow from the Moen Smart Faucet
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
@@ -93,8 +90,7 @@ stop_water:
 get_device_status:
   name: Get Device Status
   description: Get the current status and shadow data for a Moen Smart Faucet device
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
@@ -107,15 +103,13 @@ get_device_status:
 get_user_profile:
   name: Get User Profile
   description: Get the user profile information from the Moen API
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields: {}
 
 set_temperature:
   name: Set Temperature
   description: Set the water temperature for the Moen Smart Faucet
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
@@ -147,8 +141,7 @@ set_temperature:
 set_default_flow_rate:
   name: Set Default Flow Rate
   description: Set the default flow rate percentage for gesture activation (wave hand) on the Moen Smart Faucet
-  response:
-    optional: true
+  supports_response: OPTIONAL
   fields:
     device_id:
       name: Device
