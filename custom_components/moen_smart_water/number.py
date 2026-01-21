@@ -101,6 +101,9 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
         # Set initial value based on description
         if description.key == "temperature":
             self._attr_native_value = 20.0
+            # Min/max will be set from device shadow data
+            self._attr_native_min_value = 0.0
+            self._attr_native_max_value = 100.0
         else:
             self._attr_native_value = 0
 
@@ -123,7 +126,18 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
         key = self.entity_description.key
 
         if key == "temperature":
+            # Update current temperature value
             self._attr_native_value = state.get("temperature", 20.0)
+            # Update min/max from device setpoints
+            setpoint_cold = state.get("setpointColdTemp", 0.0)
+            setpoint_hot = state.get("setpointHotTemp", 100.0)
+            # Ensure we have valid values
+            if setpoint_cold is not None and setpoint_hot is not None:
+                self._attr_native_min_value = float(setpoint_cold)
+                self._attr_native_max_value = float(setpoint_hot)
+                # Update the entity description min/max for UI
+                self.entity_description.native_min_value = self._attr_native_min_value
+                self.entity_description.native_max_value = self._attr_native_max_value
         elif key == "flow_rate":
             # Handle "unknown" values by keeping current value or defaulting to 0
             flow_rate = state.get("flowRate", 0)
@@ -142,15 +156,51 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
 
         try:
             if key == "temperature":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_specific_temperature,
-                    self._device_id,
-                    value,
-                )
-                self._attr_native_value = value
-                _LOGGER.info(
-                    "Set temperature to %.1f°C for device %s", value, self._device_id
-                )
+                # Get current min/max values
+                min_temp = self._attr_native_min_value
+                max_temp = self._attr_native_max_value
+
+                # Check if value is at min (coldest) or max (hottest)
+                # Use a small tolerance (0.1°C) to account for floating point precision
+                if abs(value - min_temp) < 0.1:
+                    # Set to coldest
+                    await self.hass.async_add_executor_job(
+                        self.coordinator.api.set_coldest,
+                        self._device_id,
+                        100,  # Full flow rate
+                    )
+                    self._attr_native_value = min_temp
+                    _LOGGER.info(
+                        "Set temperature to coldest (%.1f°C) for device %s",
+                        min_temp,
+                        self._device_id,
+                    )
+                elif abs(value - max_temp) < 0.1:
+                    # Set to hottest
+                    await self.hass.async_add_executor_job(
+                        self.coordinator.api.set_hottest,
+                        self._device_id,
+                        100,  # Full flow rate
+                    )
+                    self._attr_native_value = max_temp
+                    _LOGGER.info(
+                        "Set temperature to hottest (%.1f°C) for device %s",
+                        max_temp,
+                        self._device_id,
+                    )
+                else:
+                    # Set specific temperature
+                    await self.hass.async_add_executor_job(
+                        self.coordinator.api.set_specific_temperature,
+                        self._device_id,
+                        value,
+                    )
+                    self._attr_native_value = value
+                    _LOGGER.info(
+                        "Set temperature to %.1f°C for device %s",
+                        value,
+                        self._device_id,
+                    )
 
             elif key == "flow_rate":
                 await self.hass.async_add_executor_job(
