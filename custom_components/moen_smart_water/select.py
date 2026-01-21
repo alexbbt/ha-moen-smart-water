@@ -28,7 +28,7 @@ TEMPERATURE_PRESET_SELECT = SelectEntityDescription(
 DEFAULT_TEMPERATURE_SELECT = SelectEntityDescription(
     key="default_temperature",
     name="Default Temperature",
-    options=["handle", "coldest", "equal"],
+    options=["Handle Position", "Coldest", "Equal Mix"],
     entity_category=EntityCategory.CONFIG,
     icon="mdi:gesture-tap",
 )
@@ -92,8 +92,8 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
 
         # Set initial option based on description key
         if description.key == "default_temperature":
-            # Default to "handle" for default temperature
-            self._attr_current_option = "handle"
+            # Default to "Handle Position" for default temperature
+            self._attr_current_option = "Handle Position"
         else:
             self._attr_current_option = (
                 description.options[0] if description.options else ""
@@ -127,16 +127,16 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
         elif key == "default_temperature":
             # Get default temperature mode for gesture activation
             default_temp = state.get("defaultTemp", "handle")
-            # Map API values to display options
+            # Map API values to display-friendly option names
             if default_temp == "handle":
-                self._attr_current_option = "handle"
+                self._attr_current_option = "Handle Position"
             elif default_temp == "coldest":
-                self._attr_current_option = "coldest"
+                self._attr_current_option = "Coldest"
             elif default_temp in ["equal", "mix"]:
-                self._attr_current_option = "equal"
+                self._attr_current_option = "Equal Mix"
             else:
-                # Default to handle if unknown value
-                self._attr_current_option = "handle"
+                # Default to Handle Position if unknown value
+                self._attr_current_option = "Handle Position"
 
         self.async_write_ha_state()
 
@@ -180,8 +180,21 @@ class MoenSelect(CoordinatorEntity, SelectEntity):
                     )
             elif key == "default_temperature":
                 # Set default temperature mode for gesture activation
-                # Map display options to API values
-                api_value = option  # Options already match API values
+                # Map display-friendly option names to API values
+                if option == "Handle Position":
+                    api_value = "handle"
+                elif option == "Coldest":
+                    api_value = "coldest"
+                elif option == "Equal Mix":
+                    api_value = "equal"
+                else:
+                    # Fallback to handle if unknown option
+                    api_value = "handle"
+                    _LOGGER.warning(
+                        "Unknown default temperature option '%s', using 'handle'",
+                        option,
+                    )
+
                 await self.hass.async_add_executor_job(
                     self.coordinator.api.set_default_temperature,
                     self._device_id,
