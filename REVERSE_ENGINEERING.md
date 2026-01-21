@@ -1,4 +1,4 @@
-# Moen SmartWater – Simple mitmproxy Setup Guide
+# Moen SmartWater API Reverse Engineering Guide
 
 This guide shows the **simplest, correct way** to capture and inspect Moen SmartWater mobile app traffic using **mitmproxy with a web UI**.
 
