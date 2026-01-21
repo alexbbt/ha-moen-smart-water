@@ -97,6 +97,10 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         self._attr_reports_position = True  # Required for valve entities
         self._attr_state = "closed"  # Primary state: open, opening, closed, closing, stopped, unavailable, unknown
 
+        # Device flow rate constraints (will be updated from device shadow)
+        self._min_flow_rate = 10  # Default to trickleFlowRate
+        self._max_flow_rate = 100  # Default to maxFlowRate
+
         # Additional attributes for temperature and status
         self._attr_temperature = 20.0
         self._attr_preset_mode = "coldest"
@@ -148,13 +152,23 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
         # Convert Celsius to Fahrenheit: F = (C * 9/5) + 32
         temperature_fahrenheit = (temperature_celsius * 9 / 5) + 32
 
+        # Update flow rate constraints from device shadow
+        trickle_flow_rate = state.get("trickleFlowRate")
+        max_flow_rate = state.get("maxFlowRate")
+        if trickle_flow_rate is not None:
+            self._min_flow_rate = int(trickle_flow_rate)
+        if max_flow_rate is not None:
+            self._max_flow_rate = int(max_flow_rate)
+
         _LOGGER.debug(
-            "%s UPDATE: Parsed values - device_state=%s, flow_rate=%s, temperature=%s°C (%.1f°F)",
+            "%s UPDATE: Parsed values - device_state=%s, flow_rate=%s, temperature=%s°C (%.1f°F), min_flow=%d%%, max_flow=%d%%",
             source.upper(),
             device_state,
             flow_rate,
             temperature_celsius,
             temperature_fahrenheit,
+            self._min_flow_rate,
+            self._max_flow_rate,
         )
 
         # Determine if valve is open based on device state and flow rate
@@ -216,6 +230,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             "temperature": f"{temperature_fahrenheit:.1f} °F",
             "temperature_celsius": f"{temperature_celsius:.1f} °C",
             "valve_position": f"{self._attr_valve_position}%",
+            "min_flow_rate": f"{self._min_flow_rate}%",
+            "max_flow_rate": f"{self._max_flow_rate}%",
         }
 
         # Only include api_flow_rate if we actually got one from the API
@@ -231,6 +247,39 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             self._attr_state,
             self._attr_valve_position,
         )
+
+    def _clamp_flow_rate(self, flow_rate: int) -> int:
+        """Clamp flow rate to device constraints.
+
+        Args:
+            flow_rate: The requested flow rate (0-100)
+
+        Returns:
+            Clamped flow rate (0 for closed, or min_flow_rate to max_flow_rate)
+        """
+        if flow_rate == 0:
+            # 0 means close valve, don't clamp
+            return 0
+
+        # For any non-zero value, enforce minimum (trickleFlowRate)
+        if flow_rate < self._min_flow_rate:
+            _LOGGER.info(
+                "Flow rate %d%% is below minimum %d%%, clamping to minimum",
+                flow_rate,
+                self._min_flow_rate,
+            )
+            return self._min_flow_rate
+
+        # Enforce maximum (maxFlowRate)
+        if flow_rate > self._max_flow_rate:
+            _LOGGER.info(
+                "Flow rate %d%% is above maximum %d%%, clamping to maximum",
+                flow_rate,
+                self._max_flow_rate,
+            )
+            return self._max_flow_rate
+
+        return flow_rate
 
     async def _manual_update_from_api(self) -> None:
         """Manually update valve state with fresh API data, bypassing coordinator cache."""
@@ -254,8 +303,8 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
 
     async def _delayed_api_check(self) -> None:
         """Wait a few seconds then check API to confirm valve state."""
-        _LOGGER.debug("DELAYED CHECK: Waiting 3 seconds for API to update...")
-        await asyncio.sleep(3)  # Wait 3 seconds for API to catch up
+        _LOGGER.debug("DELAYED CHECK: Waiting 5 seconds for API to update...")
+        await asyncio.sleep(5)  # Wait 5 seconds for API to catch up
         _LOGGER.debug("DELAYED CHECK: Checking API after delay")
         await self._manual_update_from_api()
 
@@ -265,7 +314,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             _LOGGER.info("Opening valve for device %s", self._device_id)
 
             # Call the API to start water flow - use valve position as flow rate percentage
-            # If valve is closed (0%), default to defaultFlowRate from device, or 100% as fallback
+            # If valve is closed (0%), default to defaultFlowRate from device, or min_flow_rate as fallback
             if self._attr_valve_position > 0:
                 flow_rate = int(self._attr_valve_position)
             else:
@@ -273,7 +322,12 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 shadow = self.coordinator.get_device_shadow(self._device_id)
                 state = shadow.get("state", {}).get("reported", {}) if shadow else {}
                 default_flow_rate = state.get("defaultFlowRate")
-                flow_rate = int(default_flow_rate) if default_flow_rate else 100
+                flow_rate = (
+                    int(default_flow_rate) if default_flow_rate else self._min_flow_rate
+                )
+
+            # Clamp flow rate to device constraints
+            flow_rate = self._clamp_flow_rate(flow_rate)
 
             # Get current temperature setting from device state to preserve it
             shadow = self.coordinator.get_device_shadow(self._device_id)
@@ -400,17 +454,30 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
     async def async_set_valve_position(self, position: float) -> None:
         """Set the valve position (flow rate 0-100) and start water flow."""
         try:
+            requested_position = int(position)
             _LOGGER.info(
                 "Setting valve position to %d%% for device %s",
-                int(position),
+                requested_position,
                 self._device_id,
             )
 
+            # Clamp position to device constraints (0, or min_flow_rate to max_flow_rate)
+            clamped_position = self._clamp_flow_rate(requested_position)
+
+            if clamped_position != requested_position:
+                _LOGGER.info(
+                    "Requested position %d%% adjusted to %d%% to respect device constraints (min=%d%%, max=%d%%)",
+                    requested_position,
+                    clamped_position,
+                    self._min_flow_rate,
+                    self._max_flow_rate,
+                )
+
             # Update the valve position
-            self._attr_valve_position = int(position)
+            self._attr_valve_position = clamped_position
 
             # If position is 0, close the valve
-            if int(position) == 0:
+            if clamped_position == 0:
                 if not self._attr_is_closed:
                     _LOGGER.info("Position set to 0%, closing valve")
                     # Call stop_water_flow directly like the stop button does
@@ -482,7 +549,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 _LOGGER.info(
                     "Starting water flow with temperature %s and %d%% flow rate",
                     temperature_to_use,
-                    int(position),
+                    clamped_position,
                 )
 
                 # Start water flow with current temperature and new flow rate
@@ -490,7 +557,7 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                     self.coordinator.api.start_water_flow,
                     self._device_id,
                     temperature_to_use,
-                    int(position),
+                    clamped_position,
                 )
 
                 # Set valve to "open" state immediately (optimistic update)
