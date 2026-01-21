@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -206,8 +207,6 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         if not shadow:
             if self.entity_description.key == "api_status":
                 self._attr_native_value = "No Data"
-            elif self.entity_description.key == "last_update":
-                self._attr_native_value = "failed"
             else:
                 self._attr_native_value = None
             self.async_write_ha_state()
@@ -239,8 +238,6 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
                 self._attr_native_value = "Disconnected"
         elif key == "last_update":
             if self.coordinator.last_update_success:
-                from datetime import datetime, timezone
-
                 self._attr_native_value = datetime.now(timezone.utc)  # noqa: UP017
             else:
                 self._attr_native_value = None
@@ -251,10 +248,10 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "wifi_rssi":
             self._attr_native_value = state.get("wifiRssi")
         elif key == "wifi_connected":
-            # WiFi connected status - use actual connected field from device
+            # Check both WiFi signal presence and cloud connectivity
+            # Device is considered connected if it has WiFi signal AND can reach Moen servers
             connected = state.get("connected", False)
             wifi_rssi = state.get("wifiRssi")
-            # Device is connected to WiFi if it has signal data AND can reach servers
             self._attr_native_value = (
                 "connected" if connected and wifi_rssi is not None else "disconnected"
             )
@@ -265,8 +262,6 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "last_connect":
             last_connect = state.get("lastConnect")
             if last_connect:
-                from datetime import datetime, timezone
-
                 try:
                     if isinstance(last_connect, str):
                         # Parse ISO string
