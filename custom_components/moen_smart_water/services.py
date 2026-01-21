@@ -5,25 +5,57 @@ from __future__ import annotations
 import logging
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 
 from .coordinator import MoenDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+DOMAIN = "moen_smart_water"
+
+
+def get_moen_device_id(hass: HomeAssistant, ha_device_id: str) -> str | None:
+    """Convert Home Assistant device ID to Moen device ID."""
+    device_registry = dr.async_get(hass)
+    device = device_registry.async_get(ha_device_id)
+
+    if not device:
+        return None
+
+    # Look for the Moen device identifier
+    for identifier in device.identifiers:
+        if identifier[0] == DOMAIN:
+            return identifier[1]
+
+    return None
+
+
 # Service schemas
-DISPENSE_SERVICE_SCHEMA = vol.Schema(
+START_WATER_SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
-        vol.Optional("volume_ml", default=250): vol.All(
-            int, vol.Range(min=50, max=2000)
+        vol.Optional("temperature", default="coldest"): vol.Any(
+            cv.string, vol.All(float, vol.Range(min=0, max=100))
         ),
-        vol.Optional("timeout", default=120): vol.All(int, vol.Range(min=10, max=300)),
+        vol.Optional("flow_rate", default=100): vol.All(int, vol.Range(min=0, max=100)),
     }
 )
 
-STOP_DISPENSE_SERVICE_SCHEMA = vol.Schema(
+DISPENSE_VOLUME_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): cv.string,
+        vol.Required("volume_ml"): vol.All(int, vol.Range(min=50, max=2000)),
+        vol.Optional("temperature"): vol.Any(
+            cv.string, vol.All(float, vol.Range(min=0, max=100))
+        ),
+        vol.Optional("flow_rate"): vol.All(int, vol.Range(min=0, max=100)),
+        vol.Optional("timeout"): vol.All(int, vol.Range(min=10, max=300)),
+    }
+)
+
+STOP_WATER_SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
     }
@@ -57,12 +89,17 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up the actions for Moen Smart Water integration."""
     _LOGGER.info("Setting up Moen Smart Water actions")
 
-    async def dispense_water(call: ServiceCall) -> None:
-        """Action to dispense water from the faucet."""
-        device_id = call.data["device_id"]
-        # Note: volume_ml and timeout are available but not used in current implementation
-        # call.data["volume_ml"]
-        # call.data["timeout"]
+    async def start_water(call: ServiceCall) -> ServiceResponse:
+        """Action to start water flow with specified temperature and flow rate."""
+        ha_device_id = call.data["device_id"]
+        temperature = call.data["temperature"]
+        flow_rate = call.data["flow_rate"]
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
 
         # Find the coordinator for this device
         coordinator = None
@@ -76,23 +113,62 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     break
 
         if not coordinator:
-            _LOGGER.error(
-                "Device %s not found in any configured Moen Smart Water integration",
-                device_id,
-            )
-            return
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
 
         try:
             await hass.async_add_executor_job(
-                coordinator.api.start_water_flow, device_id, "coldest", 100
+                coordinator.api.start_water_flow, device_id, temperature, flow_rate
             )
-            _LOGGER.info("Started dispensing from device %s", device_id)
-        except Exception as err:
-            _LOGGER.error("Failed to dispense water from device %s: %s", device_id, err)
+            _LOGGER.info(
+                "Started water flow on device %s (temp: %s, flow: %d%%)",
+                device_id,
+                temperature,
+                flow_rate,
+            )
 
-    async def stop_dispensing(call: ServiceCall) -> None:
-        """Action to stop dispensing water from the faucet."""
-        device_id = call.data["device_id"]
+            # Get current device shadow to return state
+            shadow = coordinator.get_device_shadow(device_id)
+
+            return {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "temperature": temperature,
+                "flow_rate": flow_rate,
+                "message": f"Started water flow on device {device_id}",
+                "current_state": shadow.get("reported", {}).get("valveState", "unknown")
+                if shadow
+                else "unknown",
+            }
+        except Exception as err:
+            error_msg = f"Failed to start water flow on device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
+
+    async def dispense_volume(call: ServiceCall) -> ServiceResponse:
+        """Action to dispense a specific volume of water from the faucet."""
+        ha_device_id = call.data["device_id"]
+        volume_ml = call.data.get("volume_ml")  # Now optional
+        temperature = call.data.get("temperature")  # Optional
+        flow_rate = call.data.get("flow_rate")  # Optional
+        timeout = call.data.get("timeout", 120)  # Default to 120s if not provided
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
 
         # Find the coordinator for this device
         coordinator = None
@@ -106,25 +182,150 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     break
 
         if not coordinator:
-            _LOGGER.error(
-                "Device %s not found in any configured Moen Smart Water integration",
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
+
+        try:
+            await hass.async_add_executor_job(
+                coordinator.api.dispense_water,
                 device_id,
+                volume_ml,
+                temperature,
+                flow_rate,
+                timeout,
             )
-            return
+
+            # Build log message with optional parameters
+            log_parts = []
+            if volume_ml is not None:
+                log_parts.append(f"{volume_ml}ml")
+            if temperature is not None:
+                log_parts.append(f"temp: {temperature}")
+            if flow_rate is not None:
+                log_parts.append(f"flow: {flow_rate}%")
+            log_msg = ", ".join(log_parts) if log_parts else "no limits"
+
+            _LOGGER.info(
+                "Set up dispense on device %s (%s)",
+                device_id,
+                log_msg,
+            )
+
+            # Get current device shadow to return state
+            shadow = coordinator.get_device_shadow(device_id)
+
+            # Build response message
+            msg_parts = []
+            if volume_ml is not None:
+                msg_parts.append(f"{volume_ml}ml")
+            if temperature is not None:
+                msg_parts.append(f"temp {temperature}")
+            if flow_rate is not None:
+                msg_parts.append(f"flow {flow_rate}%")
+            message = f"Dispense configured ({', '.join(msg_parts) if msg_parts else 'no limits'}) - wave hand to start"
+
+            response = {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "message": message,
+                "current_state": shadow.get("reported", {}).get("valveState", "unknown")
+                if shadow
+                else "unknown",
+            }
+
+            # Add optional parameters to response if they were provided
+            if volume_ml is not None:
+                response["volume_ml"] = volume_ml
+            if temperature is not None:
+                response["temperature"] = temperature
+            if flow_rate is not None:
+                response["flow_rate"] = flow_rate
+            response["timeout"] = timeout
+
+            return response
+        except Exception as err:
+            error_msg = f"Failed to dispense water from device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
+
+    async def stop_water(call: ServiceCall) -> ServiceResponse:
+        """Action to stop water flow from the faucet."""
+        ha_device_id = call.data["device_id"]
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
+
+        # Find the coordinator for this device
+        coordinator = None
+        for _entry_id, entry_coordinator in hass.data.get(
+            "moen_smart_water", {}
+        ).items():
+            if isinstance(entry_coordinator, MoenDataUpdateCoordinator):
+                devices = entry_coordinator.get_all_devices()
+                if device_id in devices:
+                    coordinator = entry_coordinator
+                    break
+
+        if not coordinator:
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
 
         try:
             await hass.async_add_executor_job(
                 coordinator.api.stop_water_flow, device_id
             )
-            _LOGGER.info("Stopped dispensing from device %s", device_id)
-        except Exception as err:
-            _LOGGER.error(
-                "Failed to stop dispensing from device %s: %s", device_id, err
-            )
+            _LOGGER.info("Stopped water flow on device %s", device_id)
 
-    async def get_device_status(call: ServiceCall) -> None:
+            # Get current device shadow to return state
+            shadow = coordinator.get_device_shadow(device_id)
+
+            return {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "message": f"Stopped water flow on device {device_id}",
+                "current_state": shadow.get("reported", {}).get("valveState", "unknown")
+                if shadow
+                else "unknown",
+            }
+        except Exception as err:
+            error_msg = f"Failed to stop water flow on device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
+
+    async def get_device_status(call: ServiceCall) -> ServiceResponse:
         """Action to get device status."""
-        device_id = call.data["device_id"]
+        ha_device_id = call.data["device_id"]
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
 
         # Find the coordinator for this device
         coordinator = None
@@ -138,19 +339,36 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     break
 
         if not coordinator:
-            _LOGGER.error(
-                "Device %s not found in any configured Moen Smart Water integration",
-                device_id,
-            )
-            return
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
 
         try:
             shadow = coordinator.get_device_shadow(device_id)
             _LOGGER.info("Device %s shadow: %s", device_id, shadow)
-        except Exception as err:
-            _LOGGER.error("Failed to get status for device %s: %s", device_id, err)
 
-    async def get_user_profile(call: ServiceCall) -> None:
+            return {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "shadow": shadow,
+                "message": f"Retrieved status for device {device_id}",
+            }
+        except Exception as err:
+            error_msg = f"Failed to get status for device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
+
+    async def get_user_profile(call: ServiceCall) -> ServiceResponse:
         """Action to get user profile."""
         # Find any coordinator (they all have the same user profile)
         coordinator = None
@@ -162,22 +380,43 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 break
 
         if not coordinator:
-            _LOGGER.error("No Moen Smart Water integration found")
-            return
+            error_msg = "No Moen Smart Water integration found"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+            }
 
         try:
             profile = await hass.async_add_executor_job(
                 coordinator.api.get_user_profile
             )
             _LOGGER.info("User profile: %s", profile)
-        except Exception as err:
-            _LOGGER.error("Failed to get user profile: %s", err)
 
-    async def set_temperature(call: ServiceCall) -> None:
+            return {
+                "success": True,
+                "profile": profile,
+                "message": "Retrieved user profile",
+            }
+        except Exception as err:
+            error_msg = f"Failed to get user profile: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+            }
+
+    async def set_temperature(call: ServiceCall) -> ServiceResponse:
         """Action to set water temperature."""
-        device_id = call.data["device_id"]
+        ha_device_id = call.data["device_id"]
         temperature = call.data["temperature"]
         flow_rate = call.data["flow_rate"]
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
 
         # Find the coordinator for this device
         coordinator = None
@@ -191,11 +430,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     break
 
         if not coordinator:
-            _LOGGER.error(
-                "Device %s not found in any configured Moen Smart Water integration",
-                device_id,
-            )
-            return
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
 
         try:
             await hass.async_add_executor_job(
@@ -207,13 +448,41 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.info(
                 "Set temperature to %.1f°C for device %s", temperature, device_id
             )
-        except Exception as err:
-            _LOGGER.error("Failed to set temperature for device %s: %s", device_id, err)
 
-    async def set_default_flow_rate(call: ServiceCall) -> None:
+            # Get current device shadow to return state
+            shadow = coordinator.get_device_shadow(device_id)
+
+            return {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "temperature": temperature,
+                "flow_rate": flow_rate,
+                "message": f"Set temperature to {temperature}°C for device {device_id}",
+                "current_state": shadow.get("reported", {}).get("valveState", "unknown")
+                if shadow
+                else "unknown",
+            }
+        except Exception as err:
+            error_msg = f"Failed to set temperature for device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
+
+    async def set_default_flow_rate(call: ServiceCall) -> ServiceResponse:
         """Action to set default flow rate for gesture activation."""
-        device_id = call.data["device_id"]
+        ha_device_id = call.data["device_id"]
         default_flow_rate = call.data["default_flow_rate"]
+
+        # Convert HA device ID to Moen device ID
+        device_id = get_moen_device_id(hass, ha_device_id)
+        if not device_id:
+            # If conversion failed, try using it as-is (for backward compatibility)
+            device_id = ha_device_id
 
         # Find the coordinator for this device
         coordinator = None
@@ -227,11 +496,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     break
 
         if not coordinator:
-            _LOGGER.error(
-                "Device %s not found in any configured Moen Smart Water integration",
-                device_id,
-            )
-            return
+            error_msg = f"Device {device_id} not found in any configured Moen Smart Water integration"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+            }
 
         try:
             await hass.async_add_executor_job(
@@ -242,25 +513,48 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 default_flow_rate,
                 device_id,
             )
+
+            return {
+                "success": True,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+                "default_flow_rate": default_flow_rate,
+                "message": f"Set default flow rate to {default_flow_rate}% for device {device_id}",
+            }
         except Exception as err:
-            _LOGGER.error(
-                "Failed to set default flow rate for device %s: %s", device_id, err
-            )
+            error_msg = f"Failed to set default flow rate for device {device_id}: {err}"
+            _LOGGER.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg,
+                "device_id": ha_device_id,
+                "moen_device_id": device_id,
+            }
 
     # Register actions
     try:
         hass.services.async_register(
             "moen_smart_water",
-            "dispense_water",
-            dispense_water,
-            schema=DISPENSE_SERVICE_SCHEMA,
+            "start_water",
+            start_water,
+            schema=START_WATER_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         hass.services.async_register(
             "moen_smart_water",
-            "stop_dispensing",
-            stop_dispensing,
-            schema=STOP_DISPENSE_SERVICE_SCHEMA,
+            "dispense_volume",
+            dispense_volume,
+            schema=DISPENSE_VOLUME_SERVICE_SCHEMA,
+            supports_response=True,
+        )
+
+        hass.services.async_register(
+            "moen_smart_water",
+            "stop_water",
+            stop_water,
+            schema=STOP_WATER_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         hass.services.async_register(
@@ -268,6 +562,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "get_device_status",
             get_device_status,
             schema=GET_STATUS_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         hass.services.async_register(
@@ -275,6 +570,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "get_user_profile",
             get_user_profile,
             schema=GET_USER_PROFILE_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         hass.services.async_register(
@@ -282,6 +578,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "set_temperature",
             set_temperature,
             schema=SET_TEMPERATURE_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         hass.services.async_register(
@@ -289,6 +586,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "set_default_flow_rate",
             set_default_flow_rate,
             schema=SET_DEFAULT_FLOW_RATE_SERVICE_SCHEMA,
+            supports_response=True,
         )
 
         _LOGGER.info("Successfully registered all Moen Smart Water actions")

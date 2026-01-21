@@ -1,6 +1,39 @@
-dispense_water:
-  name: Dispense Water
-  description: Start dispensing water from the Moen Smart Faucet
+start_water:
+  name: Start Water
+  description: Start water flow with specified temperature and flow rate (runs until manually stopped)
+  response:
+    optional: true
+  fields:
+    device_id:
+      name: Device
+      description: The Moen Smart Faucet device
+      required: true
+      selector:
+        device:
+          integration: moen_smart_water
+    temperature:
+      name: Temperature
+      description: Water temperature in Celsius (or use preset like 'coldest', 'hottest', 'equal')
+      required: false
+      default: "coldest"
+      selector:
+        text:
+    flow_rate:
+      name: Flow Rate
+      description: Flow rate percentage (0-100)
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+dispense_volume:
+  name: Dispense Volume
+  description: Dispense a specific volume of water (wave hand to start, auto-stops when volume reached)
+  response:
+    optional: true
   fields:
     device_id:
       name: Device
@@ -12,27 +45,42 @@ dispense_water:
     volume_ml:
       name: Volume (ml)
       description: Volume of water to dispense in milliliters
-      required: false
-      default: 250
+      required: true
       selector:
         number:
           min: 50
           max: 2000
           unit_of_measurement: ml
+    temperature:
+      name: Temperature
+      description: Water temperature (optional - can be "coldest", "equal" (50/50 mix), "hottest", or numeric °C). Temperature may not prewarm with dispense command.
+      required: false
+      selector:
+        text:
+    flow_rate:
+      name: Flow Rate
+      description: Flow rate percentage (optional, 0-100%)
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
     timeout:
       name: Timeout (seconds)
-      description: Maximum time to dispense water in seconds
+      description: Maximum time to dispense water in seconds (optional, reserved for future use)
       required: false
-      default: 120
       selector:
         number:
           min: 10
           max: 300
           unit_of_measurement: s
 
-stop_dispensing:
-  name: Stop Dispensing
-  description: Stop dispensing water from the Moen Smart Faucet
+stop_water:
+  name: Stop Water
+  description: Stop water flow from the Moen Smart Faucet
+  response:
+    optional: true
   fields:
     device_id:
       name: Device
@@ -45,6 +93,8 @@ stop_dispensing:
 get_device_status:
   name: Get Device Status
   description: Get the current status and shadow data for a Moen Smart Faucet device
+  response:
+    optional: true
   fields:
     device_id:
       name: Device
@@ -57,11 +107,15 @@ get_device_status:
 get_user_profile:
   name: Get User Profile
   description: Get the user profile information from the Moen API
+  response:
+    optional: true
   fields: {}
 
 set_temperature:
   name: Set Temperature
   description: Set the water temperature for the Moen Smart Faucet
+  response:
+    optional: true
   fields:
     device_id:
       name: Device
@@ -93,6 +147,8 @@ set_temperature:
 set_default_flow_rate:
   name: Set Default Flow Rate
   description: Set the default flow rate percentage for gesture activation (wave hand) on the Moen Smart Faucet
+  response:
+    optional: true
   fields:
     device_id:
       name: Device

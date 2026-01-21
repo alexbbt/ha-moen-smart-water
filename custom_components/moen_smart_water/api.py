@@ -590,7 +590,26 @@ class MoenAPI:
     def start_water_flow(
         self, client_id: str, temperature: str | float = "coldest", flow_rate: int = 100
     ) -> dict[str, Any]:
-        """Start water flow with specified temperature and flow rate."""
+        """Start water flow with specified temperature and flow rate.
+
+        Note: "warm" is converted to "equal" (50/50 hot/cold mix) for consistency.
+        """
+        # Convert "warm" to "equal" for consistency
+        if temperature == "warm":
+            temperature = "equal"
+        # Convert numeric strings to floats (e.g., "40" -> 40.0)
+        elif isinstance(temperature, str) and temperature not in [
+            "coldest",
+            "hottest",
+            "equal",
+        ]:
+            try:
+                temperature = float(temperature)
+            except ValueError:
+                _LOGGER.warning(
+                    "Invalid temperature value: %s, using as-is", temperature
+                )
+
         payload_data = {
             "commandSrc": "app",
             "command": "run",
@@ -603,6 +622,87 @@ class MoenAPI:
         """Stop water flow."""
         payload_data = {"commandSrc": "app", "command": "stop"}
         return self.update_device_shadow(client_id, payload_data)
+
+    def dispense_water(
+        self,
+        client_id: str,
+        volume_ml: int,
+        temperature: str | float | None = None,
+        flow_rate: int | None = None,
+        timeout: int = 120,
+    ) -> dict[str, Any]:
+        """Dispense a specific volume of water with optional temperature and flow rate.
+
+        Note: This uses the "dispense" command which is specifically for volume-based
+        dispensing. User must wave hand to start, water auto-stops when volume is reached.
+        For continuous flow without volume limit, use start_water_flow() instead.
+
+        Temperature handling:
+        - "coldest", "hottest", "equal" are special string values
+        - "warm" is converted to "equal" (50/50 hot/cold mix)
+        - Numeric values are specific temperatures in °C
+
+        Args:
+            client_id: The device client ID
+            volume_ml: Volume in milliliters (will be converted to microliters) - REQUIRED
+            temperature: Optional temperature (e.g., "coldest", "hottest", "equal", or numeric °C)
+            flow_rate: Optional flow rate percentage (0-100)
+            timeout: Timeout in seconds (currently not used by API, reserved for future)
+        """
+        # Handle temperature parameter
+        # Note: "warm" is not a valid API value for dispense command
+        # Convert to "equal" (50/50 hot/cold mix) which provides warm water
+        if temperature == "warm":
+            temperature = "equal"
+            _LOGGER.debug("Converting 'warm' to 'equal' (50/50 hot/cold mix)")
+        # Convert numeric strings to floats (e.g., "40" -> 40.0)
+        elif isinstance(temperature, str) and temperature not in [
+            "coldest",
+            "hottest",
+            "equal",
+        ]:
+            try:
+                original = temperature
+                temperature = float(temperature)
+                _LOGGER.debug(
+                    "Converting temperature string '%s' to numeric: %s",
+                    original,
+                    temperature,
+                )
+            except ValueError:
+                _LOGGER.warning(
+                    "Invalid temperature value: %s, using as-is", temperature
+                )
+
+        # Convert milliliters to microliters (API expects microliters)
+        volume_ul = volume_ml * 1000
+
+        payload_data: dict[str, Any] = {
+            "commandSrc": "app",
+            "command": "dispense",
+            "volume": volume_ul,
+        }
+
+        _LOGGER.info(
+            "Configuring dispense mode for %dml (%d µL) on device %s",
+            volume_ml,
+            volume_ul,
+            client_id,
+        )
+
+        # Add optional parameters if provided
+        if temperature is not None:
+            payload_data["temperature"] = temperature
+            _LOGGER.debug("Setting temperature: %s", temperature)
+
+        if flow_rate is not None:
+            payload_data["flowRate"] = flow_rate
+            _LOGGER.debug("Setting flow rate: %d%%", flow_rate)
+
+        _LOGGER.debug("Dispense payload: %s", json.dumps(payload_data, indent=2))
+        result = self.update_device_shadow(client_id, payload_data)
+        _LOGGER.debug("Dispense API response: %s", json.dumps(result, indent=2))
+        return result
 
     def set_temperature(
         self, client_id: str, temperature: str | float, flow_rate: int = 100

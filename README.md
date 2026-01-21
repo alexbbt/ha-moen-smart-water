@@ -180,19 +180,29 @@ Example entity names:
 
 ### Actions
 
-You can also control the faucet programmatically using actions:
+You can also control the faucet programmatically using actions. All actions return optional response data that can be used in scripts and automations when needed:
 
 ```yaml
-# Dispense water with specific volume
-action: moen_smart_water.dispense_water
+# Start water - continuous flow (runs until manually stopped or timeout)
+action: moen_smart_water.start_water
 target:
-  device_id: "your_device_id"  # Or use the device picker in the UI
+  device_id: "your_device_id"
 data:
-  volume_ml: 500  # Optional, 50-2000ml
-  timeout: 120    # Optional, 10-300s
+  temperature: "coldest"  # or numeric like 25 for 25°C, or "hottest", "equal"
+  flow_rate: 100          # 0-100%
 
-# Stop dispensing
-action: moen_smart_water.stop_dispensing
+# Dispense specific volume - auto-stops when volume reached (wave hand to start)
+action: moen_smart_water.dispense_volume
+target:
+  device_id: "your_device_id"
+data:
+  volume_ml: 500       # Required: 50-2000ml (automatically converted to microliters for API)
+  temperature: 25      # Optional: "coldest", "hottest", "equal" (warm water 50/50 mix), or numeric °C
+  flow_rate: 75        # Optional: 0-100%
+  timeout: 120         # Optional: 10-300s (reserved for future use)
+
+# Stop water flow
+action: moen_smart_water.stop_water
 target:
   device_id: "your_device_id"
 
@@ -218,14 +228,148 @@ target:
 
 # Get user profile
 action: moen_smart_water.get_user_profile
+
+# Examples of flexible usage:
+
+# Dispense specific volume (auto-stops)
+action: moen_smart_water.dispense_volume
+target:
+  device_id: "your_device_id"
+data:
+  volume_ml: 250
+
+# Dispense with temperature control
+action: moen_smart_water.dispense_volume
+target:
+  device_id: "your_device_id"
+data:
+  volume_ml: 500
+  temperature: "coldest"
+
+# Dispense with full control
+action: moen_smart_water.dispense_volume
+target:
+  device_id: "your_device_id"
+data:
+  volume_ml: 300
+  temperature: 37.78  # 100°F
+  flow_rate: 100
+
+# Continuous flow (no volume limit - runs until stopped)
+action: moen_smart_water.start_water
+target:
+  device_id: "your_device_id"
+data:
+  temperature: "hottest"
+  flow_rate: 50
 ```
+
+#### Response Data (Optional)
+
+All actions return optional response data that can be captured and used in subsequent automation steps. You can use the response data when you need it, or simply call the action without capturing the response:
+
+```yaml
+# Advanced usage: Capture and use response data in a script
+script:
+  dispense_and_notify:
+    sequence:
+      - action: moen_smart_water.dispense_volume
+        target:
+          device_id: "your_device_id"
+        data:
+          volume_ml: 500
+        response_variable: dispense_result
+
+      - action: notify.mobile_app
+        data:
+          message: >
+            Water dispensing {{ 'started' if dispense_result.success else 'failed' }}.
+            Status: {{ dispense_result.message }}
+            Current state: {{ dispense_result.current_state }}
+
+# Example: Using device status response
+script:
+  check_faucet_status:
+    sequence:
+      - action: moen_smart_water.get_device_status
+        target:
+          device_id: "your_device_id"
+        response_variable: status
+
+      - action: notify.mobile_app
+        data:
+          title: "Faucet Status"
+          message: >
+            Temperature: {{ status.shadow.reported.currentTemp }}°C
+            Valve State: {{ status.shadow.reported.valveState }}
+            Battery: {{ status.shadow.reported.batterySoc }}%
+```
+
+#### Response Data (Optional)
+
+All actions return optional response data that can be captured and used in subsequent automation steps. You can use the response data when you need it, or simply call the action without capturing the response:
+
+```yaml
+# Advanced usage: Capture and use response data in a script
+script:
+  dispense_and_notify:
+    sequence:
+      - action: moen_smart_water.dispense_volume
+        target:
+          device_id: "your_device_id"
+        data:
+          volume_ml: 500
+        response_variable: dispense_result
+
+      - action: notify.mobile_app
+        data:
+          message: >
+            Water dispensing {{ 'started' if dispense_result.success else 'failed' }}.
+            Status: {{ dispense_result.message }}
+            Current state: {{ dispense_result.current_state }}
+
+# Example: Using device status response
+script:
+  check_faucet_status:
+    sequence:
+      - action: moen_smart_water.get_device_status
+        target:
+          device_id: "your_device_id"
+        response_variable: status
+
+      - action: notify.mobile_app
+        data:
+          title: "Faucet Status"
+          message: >
+            Temperature: {{ status.shadow.reported.currentTemp }}°C
+            Valve State: {{ status.shadow.reported.valveState }}
+            Battery: {{ status.shadow.reported.batterySoc }}%
+```
+
+**Response Data Structure:**
+
+All actions return a response with at least:
+- `success` (boolean): Whether the action succeeded
+- `message` (string): Human-readable message about the action result
+- `device_id` (string): The Home Assistant device ID (for device-specific actions)
+- `moen_device_id` (string): The Moen API device ID (for device-specific actions)
+- `error` (string): Error message if the action failed (only present when `success` is false)
+
+Additional action-specific fields:
+- **start_water**: `temperature`, `flow_rate`, `current_state`
+- **dispense_volume**: `volume_ml`, `timeout`, `current_state`
+- **stop_water**: `current_state`
+- **get_device_status**: `shadow` (complete device shadow data)
+- **get_user_profile**: `profile` (user profile data)
+- **set_temperature**: `temperature`, `flow_rate`, `current_state`
+- **set_default_flow_rate**: `default_flow_rate`
 
 > [!TIP]
 > **Selecting Your Device:**
 > * In the Home Assistant UI, you can use the device picker to select your faucet
 > * In YAML, you can reference the device by its device_id
 > * Device ID is visible in the device information page in Home Assistant
-> * Use the `moen_smart_water.get_device_status` action to check device status
+> * Use the `moen_smart_water.get_device_status` action to check device status and retrieve detailed information
 
 ### Automations
 
@@ -243,19 +387,19 @@ Example automations for common use cases:
       target:
         entity_id: valve.kitchen_faucet_water_control
 
-# Example 2: Dispense specific volume
+# Example 2: Dispense specific volume (wave hand to start, auto-stops when volume reached)
 - alias: "Dispense water for coffee"
   trigger:
     - platform: state
       entity_id: input_boolean.make_coffee
       to: "on"
   action:
-    - action: moen_smart_water.dispense_water
+    - action: moen_smart_water.dispense_volume
       target:
         device_id: "your_device_id"
       data:
-        volume_ml: 500
-        timeout: 120
+        volume_ml: 500  # Required
+        timeout: 120    # Optional
 
 # Example 3: Set temperature based on time of day
 - alias: "Morning warm water"
@@ -330,6 +474,10 @@ This integration is based on reverse-engineering the official Moen mobile app. I
 1. Check the existing issues
 2. Create a new issue with detailed information
 3. Include relevant logs and network captures (sanitized)
+
+### Reverse Engineering Guide
+
+For developers interested in understanding how the Moen API was reverse-engineered or contributing API improvements, see [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) for a complete guide on capturing and analyzing Moen SmartWater API traffic using mitmproxy.
 
 ### Development Setup
 

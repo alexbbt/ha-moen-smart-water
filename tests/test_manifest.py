@@ -200,8 +200,9 @@ class TestServicesYAML:
             services = yaml.safe_load(f)
 
         expected_services = [
-            "dispense_water",
-            "stop_dispensing",
+            "start_water",
+            "dispense_volume",
+            "stop_water",
             "get_device_status",
             "get_user_profile",
             "set_temperature",
