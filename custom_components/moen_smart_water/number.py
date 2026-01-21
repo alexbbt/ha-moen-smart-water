@@ -134,8 +134,9 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
             learned_max = state.get("learnedMaxTemp", 100.0)
             # Ensure we have valid values
             if learned_min is not None and learned_max is not None:
-                self._attr_native_min_value = float(learned_min)
-                self._attr_native_max_value = float(learned_max)
+                # Round to whole numbers for cleaner display
+                self._attr_native_min_value = round(float(learned_min))
+                self._attr_native_max_value = round(float(learned_max))
 
             # Update temperature value from API
             # When temperatureGoal is "specific", the temperature field represents
