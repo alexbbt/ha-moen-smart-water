@@ -231,22 +231,12 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "temperature":
             self._attr_native_value = state.get("temperature")
         elif key == "api_status":
-            if shadow:
-                # Use actual API values for connected and state from shadow
-                connected = state.get("connected", False)
-                device_state = state.get("state", "unknown")
-                _LOGGER.error(
-                    "API STATUS DEBUG: connected=%s, device_state=%s, full_state=%s",
-                    connected,
-                    device_state,
-                    state,
-                )
-                if connected:
-                    self._attr_native_value = f"Connected - {device_state.title()}"
-                else:
-                    self._attr_native_value = "Disconnected"
+            # Use actual API values for connected status from shadow
+            connected = state.get("connected", False)
+            if connected:
+                self._attr_native_value = "Connected"
             else:
-                self._attr_native_value = "No Data"
+                self._attr_native_value = "Disconnected"
         elif key == "last_update":
             if self.coordinator.last_update_success:
                 from datetime import datetime, timezone
