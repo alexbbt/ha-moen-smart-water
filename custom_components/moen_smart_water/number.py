@@ -177,6 +177,40 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
 
         try:
             if key == "temperature":
+                # Get current flow rate from device state to preserve it
+                shadow = self.coordinator.get_device_shadow(self._device_id)
+                if not shadow:
+                    current_flow_rate = 100
+                else:
+                    reported = shadow.get("state", {}).get("reported", {})
+                    desired = shadow.get("state", {}).get("desired", {})
+                    device_state = reported.get("state", "idle")
+
+                    # Determine current flow rate:
+                    # 1. Check desired state for active flowRate (what was last commanded)
+                    # 2. Otherwise, use defaultFlowRate from reported state (configured default)
+                    # 3. Fall back to 100 if neither is available
+                    active_flow_rate = desired.get("flowRate")
+                    if active_flow_rate is not None and active_flow_rate != "unknown":
+                        # Use the active flow rate from desired state (last command sent)
+                        current_flow_rate = int(active_flow_rate)
+                    else:
+                        # Fall back to default flow rate from reported state
+                        default_flow_rate = reported.get("defaultFlowRate")
+                        if default_flow_rate is not None:
+                            current_flow_rate = int(default_flow_rate)
+                        else:
+                            current_flow_rate = 100
+
+                _LOGGER.debug(
+                    "Temperature change: preserving flow rate of %d%% (device_state=%s, from %s)",
+                    current_flow_rate,
+                    device_state,
+                    "desired.flowRate"
+                    if active_flow_rate
+                    else "reported.defaultFlowRate",
+                )
+
                 # Get current min/max values
                 min_temp = self._attr_native_min_value
                 max_temp = self._attr_native_max_value
@@ -188,12 +222,13 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.set_coldest,
                         self._device_id,
-                        100,  # Full flow rate
+                        current_flow_rate,
                     )
                     self._attr_native_value = min_temp
                     _LOGGER.info(
-                        "Set temperature to coldest (%.1f°C) for device %s",
+                        "Set temperature to coldest (%.1f°C) with %d%% flow rate for device %s",
                         min_temp,
+                        current_flow_rate,
                         self._device_id,
                     )
                 elif abs(value - max_temp) < 0.1:
@@ -201,12 +236,13 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                     await self.hass.async_add_executor_job(
                         self.coordinator.api.set_hottest,
                         self._device_id,
-                        100,  # Full flow rate
+                        current_flow_rate,
                     )
                     self._attr_native_value = max_temp
                     _LOGGER.info(
-                        "Set temperature to hottest (%.1f°C) for device %s",
+                        "Set temperature to hottest (%.1f°C) with %d%% flow rate for device %s",
                         max_temp,
+                        current_flow_rate,
                         self._device_id,
                     )
                 else:
@@ -215,11 +251,13 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                         self.coordinator.api.set_specific_temperature,
                         self._device_id,
                         value,
+                        current_flow_rate,
                     )
                     self._attr_native_value = value
                     _LOGGER.info(
-                        "Set temperature to %.1f°C for device %s",
+                        "Set temperature to %.1f°C with %d%% flow rate for device %s",
                         value,
+                        current_flow_rate,
                         self._device_id,
                     )
 

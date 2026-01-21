@@ -265,36 +265,74 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
             _LOGGER.info("Opening valve for device %s", self._device_id)
 
             # Call the API to start water flow - use valve position as flow rate percentage
-            # If valve is closed (0%), default to 100% flow rate like start water button
-            flow_rate = (
-                int(self._attr_valve_position) if self._attr_valve_position > 0 else 100
-            )
-            # Use appropriate temperature method based on preset mode, like the buttons do
-            if self._attr_preset_mode == "coldest":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_coldest,
-                    self._device_id,
-                    flow_rate,
-                )
-            elif self._attr_preset_mode == "warm":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_warm,
-                    self._device_id,
-                    flow_rate,
-                )
-            elif self._attr_preset_mode == "hottest":
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_hottest,
-                    self._device_id,
-                    flow_rate,
-                )
+            # If valve is closed (0%), default to defaultFlowRate from device, or 100% as fallback
+            if self._attr_valve_position > 0:
+                flow_rate = int(self._attr_valve_position)
             else:
-                # Default to coldest if preset mode is not recognized
-                await self.hass.async_add_executor_job(
-                    self.coordinator.api.set_coldest,
-                    self._device_id,
-                    flow_rate,
-                )
+                # Get defaultFlowRate from device state
+                shadow = self.coordinator.get_device_shadow(self._device_id)
+                state = shadow.get("state", {}).get("reported", {}) if shadow else {}
+                default_flow_rate = state.get("defaultFlowRate")
+                flow_rate = int(default_flow_rate) if default_flow_rate else 100
+
+            # Get current temperature setting from device state to preserve it
+            shadow = self.coordinator.get_device_shadow(self._device_id)
+            if not shadow:
+                temperature_to_use = "coldest"
+            else:
+                reported = shadow.get("state", {}).get("reported", {})
+                desired = shadow.get("state", {}).get("desired", {})
+                temperature_goal = reported.get("temperatureGoal", "coldest")
+
+                # Determine temperature to use:
+                # 1. Check desired state for last commanded temperature
+                # 2. If temperatureGoal is "specific", use the specific temperature value
+                # 3. Otherwise, use the preset (coldest, warm, hottest)
+                desired_temp = desired.get("temperature")
+                if desired_temp is not None:
+                    # Use the last commanded temperature from desired state
+                    temperature_to_use = desired_temp
+                    _LOGGER.debug(
+                        "Valve open: preserving temperature %s from desired state",
+                        desired_temp,
+                    )
+                elif temperature_goal == "specific":
+                    # Use the specific temperature from reported state
+                    temperature_value = reported.get("temperature")
+                    if temperature_value is not None:
+                        temperature_to_use = temperature_value
+                        _LOGGER.debug(
+                            "Valve open: preserving specific temperature of %.1f°C",
+                            temperature_value,
+                        )
+                    else:
+                        # Fallback to preset mode if temperature value not available
+                        temperature_to_use = self._attr_preset_mode
+                        _LOGGER.debug(
+                            "Valve open: specific temp not available, using preset %s",
+                            self._attr_preset_mode,
+                        )
+                else:
+                    # Use the temperature goal from device state (coldest, warm, hottest)
+                    temperature_to_use = temperature_goal
+                    _LOGGER.debug(
+                        "Valve open: preserving temperature preset %s",
+                        temperature_goal,
+                    )
+
+            _LOGGER.info(
+                "Opening valve with temperature %s and %d%% flow rate",
+                temperature_to_use,
+                flow_rate,
+            )
+
+            # Start water flow with current temperature and flow rate
+            await self.hass.async_add_executor_job(
+                self.coordinator.api.start_water_flow,
+                self._device_id,
+                temperature_to_use,
+                flow_rate,
+            )
 
             # Update valve position to reflect actual flow rate
             self._attr_valve_position = flow_rate
@@ -395,18 +433,63 @@ class MoenFaucetValve(CoordinatorEntity, ValveEntity):
                 else:
                     _LOGGER.info("Valve already closed")
             else:
-                # Position > 0, start water flow with current temperature preset and new flow rate
+                # Position > 0, start water flow with current temperature setting and new flow rate
+                # Get current temperature setting from device state to preserve it
+                shadow = self.coordinator.get_device_shadow(self._device_id)
+                if not shadow:
+                    temperature_to_use = "coldest"
+                else:
+                    reported = shadow.get("state", {}).get("reported", {})
+                    desired = shadow.get("state", {}).get("desired", {})
+                    temperature_goal = reported.get("temperatureGoal", "coldest")
+
+                    # Determine temperature to use:
+                    # 1. Check desired state for last commanded temperature
+                    # 2. If temperatureGoal is "specific", use the specific temperature value
+                    # 3. Otherwise, use the preset (coldest, warm, hottest)
+                    desired_temp = desired.get("temperature")
+                    if desired_temp is not None:
+                        # Use the last commanded temperature from desired state
+                        temperature_to_use = desired_temp
+                        _LOGGER.debug(
+                            "Flow rate change: preserving temperature %s from desired state",
+                            desired_temp,
+                        )
+                    elif temperature_goal == "specific":
+                        # Use the specific temperature from reported state
+                        temperature_value = reported.get("temperature")
+                        if temperature_value is not None:
+                            temperature_to_use = temperature_value
+                            _LOGGER.debug(
+                                "Flow rate change: preserving specific temperature of %.1f°C",
+                                temperature_value,
+                            )
+                        else:
+                            # Fallback to preset mode if temperature value not available
+                            temperature_to_use = self._attr_preset_mode
+                            _LOGGER.debug(
+                                "Flow rate change: specific temp not available, using preset %s",
+                                self._attr_preset_mode,
+                            )
+                    else:
+                        # Use the temperature goal from device state (coldest, warm, hottest)
+                        temperature_to_use = temperature_goal
+                        _LOGGER.debug(
+                            "Flow rate change: preserving temperature preset %s",
+                            temperature_goal,
+                        )
+
                 _LOGGER.info(
-                    "Starting water flow with %s temperature and %d%% flow rate",
-                    self._attr_preset_mode,
+                    "Starting water flow with temperature %s and %d%% flow rate",
+                    temperature_to_use,
                     int(position),
                 )
 
-                # Start water flow with current temperature preset and new flow rate
+                # Start water flow with current temperature and new flow rate
                 await self.hass.async_add_executor_job(
                     self.coordinator.api.start_water_flow,
                     self._device_id,
-                    self._attr_preset_mode,
+                    temperature_to_use,
                     int(position),
                 )
 
