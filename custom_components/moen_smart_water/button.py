@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
@@ -110,6 +111,11 @@ class MoenButton(CoordinatorEntity, ButtonEntity):
                     self.coordinator.api.stop_water_flow, self._device_id
                 )
                 _LOGGER.info("Stopped water flow for device %s", self._device_id)
+
+            # Request coordinator refresh to update valve and other entities
+            # Wait a moment for API to process the change, then refresh
+            await asyncio.sleep(1)  # Give API a moment to update
+            await self.coordinator.async_request_refresh()
 
         except Exception as err:
             _LOGGER.error(
