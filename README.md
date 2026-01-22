@@ -9,24 +9,22 @@
 [![license](https://img.shields.io/github/license/alexbbt/ha-moen-smart-water?style=for-the-badge&color=red)](https://github.com/alexbbt/ha-moen-smart-water/blob/main/LICENSE)
 [![iot_class](https://img.shields.io/badge/iot_class-cloud_polling-green.svg?style=for-the-badge)](https://developers.home-assistant.io/docs/creating_integration_manifest#iot-class)
 
+![Dashboard Overview](images/hero.png)
+
 ### Smart Faucet Control Made Simple
-#### Control your Moen Smart Water Network faucet directly from Home Assistant
 
 * Complete water flow control with valve entity (open/close/position)
-* Real-time temperature control and monitoring (0-100°C)
+* Real-time temperature control and monitoring (°C)
 * Adjustable flow rate control (10-100%)
 * Volume-based dispensing (50-2000ml)
-* Comprehensive diagnostic sensors (WiFi, Battery, Firmware)
-* Cloud connection status monitoring
-* Easy UI-based configuration
-* Professional Moen integration with full API access
+* Comprehensive diagnostic sensors (WiFi, Battery, Firmware, Cloud status)
+* UI-based configuration
 
 > [!WARNING]
 > - This integration is **unofficial** and not affiliated with Moen
 > - It requires your Moen account credentials to work
 > - All communication goes through Moen's cloud services
 > - Use at your own risk - may violate Moen's Terms of Service
-> - The integration is based on reverse-engineering the official mobile app
 
 ## Requirements
 
@@ -60,6 +58,8 @@
 4. Enter your Moen account credentials (username and password)
 5. The integration will automatically discover your faucets
 
+![Configuration](images/configuration.png)
+
 > [!TIP]
 > **Finding Your Client ID:**
 > * The integration provides a default value that should work for most users
@@ -78,6 +78,8 @@ The integration automatically creates entities for each detected Moen Smart Wate
 - **Flow Rate Position**: Adjustable position (0-100%) for precise flow control
 - **Real-time Temperature Display**: Shows current water temperature
 
+![Valve Control](images/valve_control.png)
+
 ### Button Controls
 - **Start Water**: Starts water flow with current settings
 - **Stop Water**: Stops water flow immediately
@@ -92,6 +94,8 @@ The integration automatically creates entities for each detected Moen Smart Wate
   - Coldest: Always use coldest available temperature
   - Equal Mix: Use 50/50 hot/cold mix
 
+![Controls](images/controls.png)
+
 ### Sensors
 - **Faucet State**: Current operational state (idle, running, etc.)
 - **Water Usage Today**: Daily cumulative water usage (liters)
@@ -105,6 +109,10 @@ The integration automatically creates entities for each detected Moen Smart Wate
 - **Battery**: Battery percentage (if applicable)
 - **Firmware Version**: Device firmware version
 - **Last Connect**: Timestamp of last cloud connection
+
+![Sensors](images/sensors.png)
+
+![Diagnostic Sensors](images/diagnostic.png)
 
 ### Entity Naming
 
