@@ -369,10 +369,20 @@ logger:
 
 ## Security
 
-- Credentials are stored securely in Home Assistant's configuration (encrypted)
-- All communication uses HTTPS/TLS
-- No local network access required
-- OAuth tokens are used for authentication after initial login
+- **Credential Storage**: Your Moen account username and password are stored in Home Assistant's encrypted configuration storage. After initial login, OAuth tokens (access_token, refresh_token) are stored and used for authentication. The integration automatically refreshes tokens when they expire, minimizing the need to re-enter your password.
+- **Communication**: All API communication uses HTTPS/TLS encryption
+- **Network Access**: No local network access required - all communication goes through Moen's cloud services
+- **Token Management**: OAuth tokens are automatically refreshed when they expire. If refresh fails, the integration will re-authenticate using your stored credentials
+
+### API Stability & Changes
+
+> [!WARNING]
+> **Important Notes About API Changes:**
+> - This integration uses Moen's unofficial cloud API, which may change without notice
+> - If Moen updates their API endpoints, authentication methods, or data structures, the integration may temporarily stop working
+> - The integration will be updated to accommodate API changes as they are discovered
+> - Users may need to update the integration or re-authenticate if significant API changes occur
+> - Monitor the [GitHub issues](https://github.com/alexbbt/ha-moen-smart-water/issues) page for announcements about API changes or required updates
 
 ## Contributing
 
