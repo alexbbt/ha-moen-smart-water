@@ -4,7 +4,7 @@
 # Moen Smart Water Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
-[![ha_version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
+[![ha_version](https://img.shields.io/badge/Home%20Assistant-2024.12%2B-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
 [![version](https://img.shields.io/github/v/release/alexbbt/ha-moen-smart-water?style=for-the-badge&color=purple)](https://github.com/alexbbt/ha-moen-smart-water/releases)
 [![license](https://img.shields.io/github/license/alexbbt/ha-moen-smart-water?style=for-the-badge&color=red)](https://github.com/alexbbt/ha-moen-smart-water/blob/main/LICENSE)
 [![iot_class](https://img.shields.io/badge/iot_class-cloud_polling-green.svg?style=for-the-badge)](https://developers.home-assistant.io/docs/creating_integration_manifest#iot-class)
@@ -262,47 +262,6 @@ target:
 data:
   temperature: "hottest"
   flow_rate: 50
-```
-
-#### Response Data (Optional)
-
-All actions return optional response data that can be captured and used in subsequent automation steps. You can use the response data when you need it, or simply call the action without capturing the response:
-
-```yaml
-# Advanced usage: Capture and use response data in a script
-script:
-  dispense_and_notify:
-    sequence:
-      - action: moen_smart_water.dispense_volume
-        target:
-          device_id: "your_device_id"
-        data:
-          volume_ml: 500
-        response_variable: dispense_result
-
-      - action: notify.mobile_app
-        data:
-          message: >
-            Water dispensing {{ 'started' if dispense_result.success else 'failed' }}.
-            Status: {{ dispense_result.message }}
-            Current state: {{ dispense_result.current_state }}
-
-# Example: Using device status response
-script:
-  check_faucet_status:
-    sequence:
-      - action: moen_smart_water.get_device_status
-        target:
-          device_id: "your_device_id"
-        response_variable: status
-
-      - action: notify.mobile_app
-        data:
-          title: "Faucet Status"
-          message: >
-            Temperature: {{ status.shadow.reported.currentTemp }}°C
-            Valve State: {{ status.shadow.reported.valveState }}
-            Battery: {{ status.shadow.reported.batterySoc }}%
 ```
 
 #### Response Data (Optional)

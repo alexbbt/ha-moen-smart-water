@@ -1,7 +1,7 @@
 # Cursor Rules for Moen Smart Faucet Integration
 
 ## Python Environment
-- Always use Python 3.11 (compatible with Home Assistant)
+- Always use Python 3.13 (compatible with Home Assistant 2024.12.0+)
 - Always use the virtual environment located at `./venv/`
 - When running Python commands, scripts, or tests, activate the virtual environment first
 - Use `source ./venv/bin/activate` before running any Python-related commands
@@ -44,7 +44,7 @@ git commit -m "Your commit message"
 - Check `requirements.txt` and `requirements-test.txt` for project dependencies
 - When adding new dependencies, update the appropriate requirements file
 - Use the virtual environment for all package installations
-- Test dependencies include: pytest, pytest-asyncio, pytest-mock, homeassistant>=2024.1.0
+- Test dependencies include: pytest, pytest-asyncio, pytest-mock, homeassistant>=2024.12.0
 
 ## Testing
 - Run tests using the virtual environment
@@ -59,7 +59,7 @@ git commit -m "Your commit message"
 - Must include `services.yaml` if component registers services
 - Services.yaml must quote special characters like `%` and `°C` in YAML
 - Include `__version__` in `__init__.py` for proper version handling
-- Use `Platform.VALVE` (requires homeassistant>=2024.1.0)
+- Use `Platform.VALVE` (requires homeassistant>=2024.12.0)
 - Follow HACS validation requirements
 
 ## HACS Integration

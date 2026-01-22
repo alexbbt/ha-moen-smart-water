@@ -99,8 +99,6 @@ class MoenAPI:
         }
 
         try:
-            import json
-
             json_string = json.dumps(refresh_payload)
 
             _LOGGER.debug("Refresh URL: %s", refresh_url)
@@ -164,8 +162,6 @@ class MoenAPI:
 
         try:
             # Send JSON directly as request body (as shown in the API documentation)
-            import json
-
             json_string = json.dumps(json_payload)
 
             _LOGGER.debug("Login URL: %s", login_url)
