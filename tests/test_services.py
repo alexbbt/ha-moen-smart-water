@@ -59,18 +59,16 @@ class TestServiceSchemas:
         assert result["volume_ml"] == 250
         assert result["timeout"] == 120
 
-        # Test with optional temperature and flow_rate
+        # Test with optional temperature
         data_with_temp = {
             "device_id": "test_device",
             "volume_ml": 500,
             "temperature": "coldest",
-            "flow_rate": 75,
         }
         result = DISPENSE_VOLUME_SERVICE_SCHEMA(data_with_temp)
         assert result["device_id"] == "test_device"
         assert result["volume_ml"] == 500
         assert result["temperature"] == "coldest"
-        assert result["flow_rate"] == 75
 
         # Test minimal required data (device_id and volume_ml are required)
         minimal_data = {"device_id": "test_device", "volume_ml": 250}
@@ -79,7 +77,6 @@ class TestServiceSchemas:
         assert result["volume_ml"] == 250
         assert "timeout" not in result  # timeout is optional
         assert "temperature" not in result  # temperature is optional
-        assert "flow_rate" not in result  # flow_rate is optional
 
     def test_stop_water_service_schema(self) -> None:
         """Test stop water action schema."""
@@ -156,15 +153,6 @@ class TestServiceSchemas:
         try:
             DISPENSE_VOLUME_SERVICE_SCHEMA({"device_id": "test", "volume_ml": 3000})
             raise AssertionError("Should have raised error for volume_ml > 2000")
-        except vol.Invalid:
-            pass
-
-        # Test flow_rate range
-        try:
-            DISPENSE_VOLUME_SERVICE_SCHEMA(
-                {"device_id": "test", "volume_ml": 250, "flow_rate": 150}
-            )
-            raise AssertionError("Should have raised error for flow_rate > 100")
         except vol.Invalid:
             pass
 

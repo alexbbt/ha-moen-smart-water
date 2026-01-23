@@ -29,7 +29,7 @@ start_water:
 
 dispense_volume:
   name: Dispense Volume
-  description: Dispense a specific volume of water (wave hand to start, auto-stops when volume reached)
+  description: Dispense a specific volume of water (wave hand to start, auto-stops when volume reached). Flow rate is automatically set to 100% to accurately dispense the target volume.
   fields:
     device_id:
       name: Device
@@ -53,15 +53,6 @@ dispense_volume:
       required: false
       selector:
         text:
-    flow_rate:
-      name: Flow Rate
-      description: Flow rate percentage (optional, 0-100%)
-      required: false
-      selector:
-        number:
-          min: 0
-          max: 100
-          unit_of_measurement: "%"
     timeout:
       name: Timeout (seconds)
       description: Maximum time to dispense water in seconds (optional, reserved for future use)

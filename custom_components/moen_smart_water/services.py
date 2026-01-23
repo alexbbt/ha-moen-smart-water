@@ -50,7 +50,6 @@ DISPENSE_VOLUME_SERVICE_SCHEMA = vol.Schema(
         vol.Optional("temperature"): vol.Any(
             cv.string, vol.All(float, vol.Range(min=0, max=100))
         ),
-        vol.Optional("flow_rate"): vol.All(int, vol.Range(min=0, max=100)),
         vol.Optional("timeout"): vol.All(int, vol.Range(min=10, max=300)),
     }
 )
@@ -161,7 +160,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         ha_device_id = call.data["device_id"]
         volume_ml = call.data.get("volume_ml")  # Now optional
         temperature = call.data.get("temperature")  # Optional
-        flow_rate = call.data.get("flow_rate")  # Optional
+        # Flow rate is always 100% for volume dispensing - faucet controls it automatically
+        flow_rate = 100
         timeout = call.data.get("timeout", 120)  # Default to 120s if not provided
 
         # Convert HA device ID to Moen device ID
@@ -206,8 +206,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 log_parts.append(f"{volume_ml}ml")
             if temperature is not None:
                 log_parts.append(f"temp: {temperature}")
-            if flow_rate is not None:
-                log_parts.append(f"flow: {flow_rate}%")
+            log_parts.append(f"flow: {flow_rate}%")  # Always 100% for volume dispensing
             log_msg = ", ".join(log_parts) if log_parts else "no limits"
 
             _LOGGER.info(
@@ -225,8 +224,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 msg_parts.append(f"{volume_ml}ml")
             if temperature is not None:
                 msg_parts.append(f"temp {temperature}")
-            if flow_rate is not None:
-                msg_parts.append(f"flow {flow_rate}%")
+            msg_parts.append(f"flow {flow_rate}%")  # Always 100% for volume dispensing
             message = f"Dispense configured ({', '.join(msg_parts) if msg_parts else 'no limits'}) - wave hand to start"
 
             response = {
@@ -244,8 +242,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 response["volume_ml"] = volume_ml
             if temperature is not None:
                 response["temperature"] = temperature
-            if flow_rate is not None:
-                response["flow_rate"] = flow_rate
+            response["flow_rate"] = flow_rate  # Always 100% for volume dispensing
             response["timeout"] = timeout
 
             return response

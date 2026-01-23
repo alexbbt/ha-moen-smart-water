@@ -148,13 +148,13 @@ data:
   flow_rate: 100          # 0-100%
 
 # Dispense specific volume - auto-stops when volume reached (wave hand to start)
+# Flow rate is automatically set to 100% to accurately dispense the target volume
 action: moen_smart_water.dispense_volume
 target:
   device_id: "your_device_id"
 data:
   volume_ml: 500       # Required: 50-2000ml
   temperature: 25      # Optional: "coldest", "hottest", "equal", or numeric °C
-  flow_rate: 75        # Optional: 0-100%
   timeout: 120         # Optional: 10-300s (reserved for future use)
 
 # Stop water flow
