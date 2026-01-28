@@ -49,7 +49,7 @@ WATER_USAGE_SENSOR = SensorEntityDescription(
     key="water_usage",
     name="Water Usage Today",
     native_unit_of_measurement="L",
-    device_class=SensorDeviceClass.VOLUME,
+    device_class=SensorDeviceClass.WATER,
     state_class=SensorStateClass.TOTAL_INCREASING,
     icon="mdi:water",
 )

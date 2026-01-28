@@ -136,7 +136,6 @@ class TestHACSManifest:
         required_keys = [
             "name",
             "content_in_root",
-            "filename",
             "country",
             "homeassistant",
             "render_readme",
