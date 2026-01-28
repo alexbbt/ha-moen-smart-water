@@ -1,7 +1,6 @@
 {
   "name": "Moen Smart Water",
   "content_in_root": false,
-  "filename": "moen_smart_water",
   "country": ["US", "CA"],
   "homeassistant": "2024.12.0",
   "render_readme": true
