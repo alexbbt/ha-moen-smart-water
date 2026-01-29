@@ -34,7 +34,16 @@
 * Valid Moen account credentials
 
 > [!NOTE]
-> This integration has been tested with MotionSense Wave Kitchen Faucets (Cia model). It may work with other models in the same family. [Report other models](https://github.com/alexbbt/ha-moen-smart-water/issues/new).
+> **Officially supported models** (tested and reported working):
+>
+> | Model number  | Product line | Description |
+> |---------------|--------------|-------------|
+> | **7622EV\***  | Cia          | Cia Smart Pulldown Touchless Kitchen Faucet |
+> | **7864EV\***  | Sleek       | Sleek Smart Pulldown Touchless Kitchen Faucet |
+>
+> \* Model numbers include a finish suffix (e.g. BL, C, SRS). All finishes in these **Smart** product lines are supported. Only faucets that work with the Moen Smart Water Network app are supported—same-style faucets that are not Smart (e.g. [Cia 7622](https://shop.moen.com/products/7622)) or MotionSense Wave only (e.g. [Cia 7622EWC](https://shop.moen.com/products/7622ewc)) do not use the same API.
+>
+> Other **Smart** models may work as long as they are compatible with the **Moen Smart Water Network** app. [Report other models](https://github.com/alexbbt/ha-moen-smart-water/issues/new).
 
 ## Installation
 
