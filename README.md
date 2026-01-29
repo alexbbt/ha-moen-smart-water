@@ -3,7 +3,7 @@
 
 # Moen Smart Water Integration for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://hacs.xyz)
 [![ha_version](https://img.shields.io/badge/Home%20Assistant-2024.12%2B-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
 [![version](https://img.shields.io/github/v/release/alexbbt/ha-moen-smart-water?style=for-the-badge&color=purple)](https://github.com/alexbbt/ha-moen-smart-water/releases)
 [![license](https://img.shields.io/github/license/alexbbt/ha-moen-smart-water?style=for-the-badge&color=red)](https://github.com/alexbbt/ha-moen-smart-water/blob/main/LICENSE)
@@ -39,6 +39,9 @@
 ## Installation
 
 ### Via [HACS](https://hacs.xyz/)
+
+This integration is in the **default HACS store**. You can install it by searching for **Moen Smart Water** in HACS (Settings → Add-ons → HACS → Integrations → Explore & Download), or use the one-click link below.
+
 <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=alexbbt&repository=ha-moen-smart-water&category=integration" target="_blank"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store." /></a>
 
 ### Manually
