@@ -105,8 +105,8 @@ class TestManifest:
 
         assert "requirements" in manifest
         assert isinstance(manifest["requirements"], list)
-        assert len(manifest["requirements"]) > 0
-        assert "requests" in manifest["requirements"][0]
+        # requests is provided by Home Assistant and must not be listed
+        assert manifest["requirements"] == []
 
 
 class TestHACSManifest:
