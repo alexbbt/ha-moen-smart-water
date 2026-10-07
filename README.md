@@ -44,6 +44,8 @@
 > \* Model numbers include a finish suffix (e.g. BL, C, SRS). All finishes in these **Smart** product lines are supported. Only faucets that work with the Moen Smart Water Network app are supported—same-style faucets that are not Smart (e.g. [Cia 7622](https://shop.moen.com/products/7622)) or MotionSense Wave only (e.g. [Cia 7622EWC](https://shop.moen.com/products/7622ewc)) do not use the same API.
 >
 > Other **Smart** models may work as long as they are compatible with the **Moen Smart Water Network** app. [Report other models](https://github.com/alexbbt/ha-moen-smart-water/issues/new).
+>
+> Flo by Moen whole-home shutoff valves (e.g. FloSmart 900-001, `deviceType: "FLO"`) are **not** supported here—they use a different API and are out of scope for this integration.
 
 ## Installation
 
