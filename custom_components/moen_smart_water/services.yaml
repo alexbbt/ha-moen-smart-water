@@ -44,7 +44,7 @@ dispense_volume:
       required: true
       selector:
         number:
-          min: 50
+          min: 15
           max: 2000
           unit_of_measurement: ml
     temperature:

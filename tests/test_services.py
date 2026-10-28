@@ -142,10 +142,13 @@ class TestServiceSchemas:
         except vol.Invalid:
             pass
 
-        # Test volume_ml min
+        # Test volume_ml min: 15 ml (one tablespoon) is the smallest pour that
+        # measured accurately on a real faucet; 5 ml came out about 2 ml over.
+        result = DISPENSE_VOLUME_SERVICE_SCHEMA({"device_id": "test", "volume_ml": 15})
+        assert result["volume_ml"] == 15
         try:
-            DISPENSE_VOLUME_SERVICE_SCHEMA({"device_id": "test", "volume_ml": 10})
-            raise AssertionError("Should have raised error for volume_ml < 50")
+            DISPENSE_VOLUME_SERVICE_SCHEMA({"device_id": "test", "volume_ml": 14})
+            raise AssertionError("Should have raised error for volume_ml < 15")
         except vol.Invalid:
             pass
 

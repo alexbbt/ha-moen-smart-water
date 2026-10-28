@@ -16,7 +16,7 @@
 * Complete water flow control with valve entity (open/close/position)
 * Real-time temperature control and monitoring (°C)
 * Adjustable flow rate control (10-100%)
-* Volume-based dispensing (50-2000ml)
+* Volume-based dispensing (15-2000ml)
 * Comprehensive diagnostic sensors (WiFi, Battery, Firmware, Cloud status)
 * UI-based configuration
 
@@ -167,7 +167,7 @@ action: moen_smart_water.dispense_volume
 target:
   device_id: "your_device_id"
 data:
-  volume_ml: 500       # Required: 50-2000ml
+  volume_ml: 500       # Required: 15-2000ml
   temperature: 25      # Optional: "coldest", "hottest", "equal", or numeric °C
   timeout: 120         # Optional: 10-300s (reserved for future use)
 

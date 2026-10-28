@@ -46,7 +46,7 @@ START_WATER_SERVICE_SCHEMA = vol.Schema(
 DISPENSE_VOLUME_SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
-        vol.Required("volume_ml"): vol.All(int, vol.Range(min=50, max=2000)),
+        vol.Required("volume_ml"): vol.All(int, vol.Range(min=15, max=2000)),
         vol.Optional("temperature"): vol.Any(
             cv.string, vol.All(float, vol.Range(min=0, max=100))
         ),
