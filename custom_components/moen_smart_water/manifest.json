@@ -5,8 +5,8 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/alexbbt/ha-moen-smart-water",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/alexbbt/ha-moen-smart-water/issues",
-  "requirements": [],
+  "requirements": ["awsiotsdk==1.31.0"],
   "version": "1.1.1"
 }

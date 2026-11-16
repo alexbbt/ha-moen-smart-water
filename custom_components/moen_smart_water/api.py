@@ -65,6 +65,10 @@ class MoenAPI:
         self._devices: list[dict[str, Any]] | None = None
         self._temperature_definitions: dict[str, Any] | None = None
 
+    def ensure_authenticated(self) -> None:
+        """Ensure the tokens are valid, refreshing them if needed."""
+        self._ensure_auth()
+
     def _ensure_auth(self) -> None:
         """Ensure we have a valid authentication token."""
         if not self.access_token or time.time() > self.token_expiry:

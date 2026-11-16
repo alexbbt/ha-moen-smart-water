@@ -13,16 +13,20 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .api import MoenAPI
+from .const import CONF_ENABLE_REALTIME
 from .coordinator import MoenDataUpdateCoordinator
+from .iot import MoenIotClient
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.NUMBER,
     Platform.SENSOR,
     Platform.SELECT,
+    Platform.SWITCH,
     Platform.VALVE,
 ]
 
@@ -82,11 +86,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Set up actions
     await async_setup_services(hass)
 
+    # Realtime shadow updates are best-effort; polling keeps working without them.
+    if entry.options.get(CONF_ENABLE_REALTIME, True):
+        coordinator.iot_client = MoenIotClient(hass, coordinator)
+        entry.async_create_background_task(
+            hass, coordinator.iot_client.async_start(), "moen_smart_water realtime"
+        )
+
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    coordinator: MoenDataUpdateCoordinator = hass.data["moen_smart_water"][
+        entry.entry_id
+    ]
+    if coordinator.iot_client is not None:
+        await coordinator.iot_client.async_stop()
+        coordinator.iot_client = None
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:

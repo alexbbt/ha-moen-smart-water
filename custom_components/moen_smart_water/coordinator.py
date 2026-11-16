@@ -5,13 +5,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MoenAPI
+
+if TYPE_CHECKING:
+    from .iot import MoenIotClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +33,9 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._device_shadows: dict[str, dict[str, Any]] = {}
         self._device_details: dict[str, dict[str, Any]] = {}
         self._device_usage: dict[str, dict[str, Any]] = {}
+
+        self.iot_client: MoenIotClient | None = None
+        self.realtime_connected = False
 
         super().__init__(
             hass,
@@ -122,12 +128,7 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             await _store_tokens(self.hass, self.entry, self.api.get_tokens())
 
-            return {
-                "devices": self._devices,
-                "device_shadows": self._device_shadows,
-                "device_details": self._device_details,
-                "device_usage": self._device_usage,
-            }
+            return self._snapshot()
 
         except Exception as err:
             _LOGGER.error("Error communicating with Moen API: %s", err)
@@ -152,3 +153,39 @@ class MoenDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_device_usage(self, device_id: str) -> dict[str, Any] | None:
         """Get device usage data by ID."""
         return self._device_usage.get(device_id)
+
+    def _snapshot(self) -> dict[str, Any]:
+        return {
+            "devices": self._devices,
+            "device_shadows": self._device_shadows,
+            "device_details": self._device_details,
+            "device_usage": self._device_usage,
+        }
+
+    @callback
+    def async_ingest_shadow_update(
+        self, device_id: str, reported: dict[str, Any]
+    ) -> None:
+        """Merge reported shadow state into the cache and notify entities."""
+        shadow = self._device_shadows.setdefault(device_id, {})
+        state = shadow.setdefault("state", {})
+        _merge_reported(state.setdefault("reported", {}), reported)
+        self.async_set_updated_data(self._snapshot())
+
+    @callback
+    def async_set_realtime_connected(self, connected: bool) -> None:
+        """Record the realtime link state and refresh dependent entities."""
+        if self.realtime_connected != connected:
+            self.realtime_connected = connected
+            self.async_update_listeners()
+
+
+def _merge_reported(target: dict[str, Any], update: dict[str, Any]) -> None:
+    """Apply a shadow `reported` update in place (null deletes a key)."""
+    for key, value in update.items():
+        if value is None:
+            target.pop(key, None)
+        elif isinstance(value, dict) and isinstance(target.get(key), dict):
+            _merge_reported(target[key], value)
+        else:
+            target[key] = value
