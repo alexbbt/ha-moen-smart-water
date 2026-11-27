@@ -87,6 +87,18 @@ This integration is in the **default HACS store**. You can install it by searchi
 
 The integration automatically creates entities for each detected Moen Smart Water Network faucet:
 
+### Realtime Updates (Push)
+
+The Moen cloud mirrors each faucet's state in an AWS IoT Device Shadow and
+publishes changes to it over MQTT. The integration subscribes to that shadow, so
+state changes (faucet running/idle, dispense temperature and volume) reach Home
+Assistant within a fraction of a second instead of waiting for the next poll. The
+30-second REST poll keeps running as a fallback and full-state reconciler.
+
+Realtime is on by default and can be turned off under the integration's
+**Configure → Realtime updates** option. If it cannot connect, the integration
+logs a warning, keeps polling, and retries in the background.
+
 ### Valve Entity
 - **Water Control**: Open/close valve to start/stop water flow
 - **Flow Rate Position**: Adjustable position (0-100%) for precise flow control
@@ -101,6 +113,7 @@ The integration automatically creates entities for each detected Moen Smart Wate
 ### Number Entities
 - **Temperature**: Set specific temperature (0-100°C, range adjusts based on learned device limits)
 - **Default Flow Rate**: Set flow rate percentage (10-100%) used for gesture activation
+- **Handle / Sensor / Voice / Dispense Activate Timeout**: Auto-shutoff timeouts (seconds)
 
 ### Select Entity
 - **Default Temperature**: Choose default temperature mode for gesture activation
@@ -123,10 +136,32 @@ The integration automatically creates entities for each detected Moen Smart Wate
 - **Battery**: Battery percentage (if applicable)
 - **Firmware Version**: Device firmware version
 - **Last Connect**: Timestamp of last cloud connection
+- **Last Dispense Temperature**: Temperature of the last dispense (°C)
+- **Temperature Goal**: Current target mode (coldest / hottest / specific / handle)
+- **Power Source**: AC or battery (diagnostic)
+- **Assembly Air Temperature**: Internal assembly temperature (diagnostic)
+- **Learned Minimum / Maximum Temperature**: Device-learned temperature range (diagnostic)
+- **Scald Protection Limit / Child Lock Limit**: The configured safety limit temperatures (read-only)
+- **Gesture Mode**, **Battery Saving Level**, **Handle Firmware**, **Latch Firmware** (diagnostic)
 
 ![Sensors](images/sensors.png)
 
 ![Diagnostic Sensors](images/diagnostic.png)
+
+### Binary Sensors
+- **Running**: On while water is flowing (device class `running`) — ideal for automations
+- **Freeze Risk**: On when the faucet reports a freezing condition
+- **Active Alert**: On when the device shadow carries an active alert
+- **Sensor / Handle Comm Error**: Diagnostic communication-fault indicators
+- **Connectivity**: On while the integration can reach Moen (realtime link or poll)
+- **Scald Protection / Child Lock**: Whether each safety feature is enabled (read-only visibility)
+
+### Switches
+- **Freeze Protection**: Enable/disable the device freeze-protection setting
+- **Handle Reverse**: Reverse handle orientation (configuration)
+
+> Safety-critical temperature limits (scald / child-lock limits) are intentionally
+> exposed as read state only and are not writable from Home Assistant.
 
 ### Entity Naming
 
@@ -360,6 +395,19 @@ This integration provides device-specific timestamp sensors:
 - **Last Connect**: When the faucet last connected to the Moen cloud
 
 These sensors provide specific information about your faucet's connectivity and data freshness.
+
+## Known Limitations
+
+- **Dispense temperature/volume arrive at the end of a run.** The faucet reports
+  `temperature`, `temperatureLast`, `volume` and `temperatureGoal` when a dispense
+  **ends**, not when it starts. The **Running** state itself updates instantly at
+  both start and stop.
+- **The shadow `connected` flag is unreliable.** It can read `false` while the
+  device is actively streaming. API Status / WiFi Connected therefore derive
+  connectivity from the realtime link and poll success / reported Wi-Fi signal
+  instead of that flag.
+- **Realtime uses temporary AWS credentials** that expire about hourly; the
+  integration refreshes them and reconnects automatically.
 
 ## Troubleshooting
 

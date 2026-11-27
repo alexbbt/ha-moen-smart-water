@@ -32,4 +32,4 @@ class TestIntegrationSetup:
 
     def test_platforms_count(self) -> None:
         """Test that all expected platforms are present."""
-        assert len(PLATFORMS) == 5
+        assert len(PLATFORMS) == 7

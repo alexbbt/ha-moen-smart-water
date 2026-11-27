@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Enter your Moen Smart Water Network account credentials.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Moen cloud. Check your network and try again.",
+      "invalid_auth": "Invalid Moen account credentials.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Moen Smart Water options",
+        "data": {
+          "enable_realtime": "Realtime updates"
+        },
+        "data_description": {
+          "enable_realtime": "Receive instant push updates over AWS IoT (MQTT) instead of polling every 30 seconds. Polling remains as a fallback. Disable if realtime causes problems."
+        }
+      }
+    }
+  }
+}

@@ -45,6 +45,33 @@ FLOW_RATE_NUMBER = NumberEntityDescription(
     icon="mdi:water-percent",
 )
 
+# Auto-shutoff timeouts (seconds): entity key -> shadow field.
+TIMEOUT_FIELDS = {
+    "handle_timeout": "handleTimeout",
+    "sensor_timeout": "sensorTimeout",
+    "voice_timeout": "voiceTimeout",
+    "dispense_activate_timeout": "dispenseActivateTimeout",
+}
+
+TIMEOUT_NUMBERS = tuple(
+    NumberEntityDescription(
+        key=key,
+        name=name,
+        native_min_value=0,
+        native_max_value=600,
+        native_step=10,
+        native_unit_of_measurement="s",
+        entity_category=EntityCategory.CONFIG,
+        icon="mdi:timer-outline",
+    )
+    for key, name in (
+        ("handle_timeout", "Handle Timeout"),
+        ("sensor_timeout", "Sensor Timeout"),
+        ("voice_timeout", "Voice Timeout"),
+        ("dispense_activate_timeout", "Dispense Activate Timeout"),
+    )
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -76,6 +103,10 @@ async def async_setup_entry(
                 MoenNumber(coordinator, device_id, device_name, TEMPERATURE_NUMBER),
                 MoenNumber(coordinator, device_id, device_name, FLOW_RATE_NUMBER),
             ]
+        )
+        entities.extend(
+            MoenNumber(coordinator, device_id, device_name, desc)
+            for desc in TIMEOUT_NUMBERS
         )
 
     _LOGGER.info("Adding %d number entities", len(entities))
@@ -168,6 +199,10 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                     self._attr_native_value = 10
             else:
                 self._attr_native_value = default_flow_rate
+        elif key in TIMEOUT_FIELDS:
+            value = state.get(TIMEOUT_FIELDS[key])
+            if value is not None:
+                self._attr_native_value = value
 
         self.async_write_ha_state()
 
@@ -303,6 +338,16 @@ class MoenNumber(CoordinatorEntity, NumberEntity):
                 # Wait a moment for API to process the change, then refresh
                 await asyncio.sleep(1)  # Give API a moment to update
                 await self.coordinator.async_request_refresh()
+
+            elif key in TIMEOUT_FIELDS:
+                settings = {TIMEOUT_FIELDS[key]: int(value)}
+                await self.hass.async_add_executor_job(
+                    self.coordinator.api.update_device_settings,
+                    self._device_id,
+                    settings,
+                )
+                # Reflect the change now; realtime or the next poll confirms it.
+                self.coordinator.async_ingest_shadow_update(self._device_id, settings)
 
         except Exception as err:
             _LOGGER.error(

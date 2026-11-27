@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -112,6 +113,131 @@ LAST_CONNECT_SENSOR = SensorEntityDescription(
 )
 
 
+def _shadow_sensor(
+    key: str, name: str, *, temperature: bool = False, **kwargs: Any
+) -> SensorEntityDescription:
+    if temperature:
+        kwargs |= {
+            "native_unit_of_measurement": "°C",
+            "device_class": SensorDeviceClass.TEMPERATURE,
+        }
+    return SensorEntityDescription(key=key, name=name, **kwargs)
+
+
+# Sensors that mirror a single reported shadow field: (description, field).
+SHADOW_SENSORS: tuple[tuple[SensorEntityDescription, str], ...] = (
+    (
+        _shadow_sensor(
+            "temperature_last",
+            "Last Dispense Temperature",
+            temperature=True,
+            icon="mdi:thermometer-check",
+        ),
+        "temperatureLast",
+    ),
+    (
+        _shadow_sensor(
+            "temperature_goal", "Temperature Goal", icon="mdi:thermometer-auto"
+        ),
+        "temperatureGoal",
+    ),
+    (
+        _shadow_sensor(
+            "power_source",
+            "Power Source",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:power-plug",
+        ),
+        "powerSource",
+    ),
+    (
+        _shadow_sensor(
+            "assembly_air_temp",
+            "Assembly Air Temperature",
+            temperature=True,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:thermometer",
+        ),
+        "assemblyAirTemp",
+    ),
+    (
+        _shadow_sensor(
+            "learned_min_temp",
+            "Learned Minimum Temperature",
+            temperature=True,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:thermometer-low",
+        ),
+        "learnedMinTemp",
+    ),
+    (
+        _shadow_sensor(
+            "learned_max_temp",
+            "Learned Maximum Temperature",
+            temperature=True,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:thermometer-high",
+        ),
+        "learnedMaxTemp",
+    ),
+    (
+        _shadow_sensor(
+            "safety_limit_temp",
+            "Scald Protection Limit",
+            temperature=True,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:thermometer-alert",
+        ),
+        "safetyLimitTemp",
+    ),
+    (
+        _shadow_sensor(
+            "child_limit_temp",
+            "Child Lock Limit",
+            temperature=True,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:thermometer-lines",
+        ),
+        "childLimitTemp",
+    ),
+    (
+        _shadow_sensor(
+            "gesture_mode",
+            "Gesture Mode",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:gesture-tap",
+        ),
+        "gestureMode",
+    ),
+    (
+        _shadow_sensor(
+            "battery_saving_level",
+            "Battery Saving Level",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:battery-saver",
+        ),
+        "batterySavingLevel",
+    ),
+    (
+        _shadow_sensor(
+            "handle_firmware",
+            "Handle Firmware",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        "handleFW",
+    ),
+    (
+        _shadow_sensor(
+            "latch_firmware",
+            "Latch Firmware",
+            entity_category=EntityCategory.DIAGNOSTIC,
+        ),
+        "latchFW",
+    ),
+)
+SHADOW_FIELDS = {desc.key: field for desc, field in SHADOW_SENSORS}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -163,6 +289,10 @@ async def async_setup_entry(
                 ),
                 MoenSensor(coordinator, device_id, device_name, LAST_CONNECT_SENSOR),
             ]
+        )
+        entities.extend(
+            MoenSensor(coordinator, device_id, device_name, desc)
+            for desc, _field in SHADOW_SENSORS
         )
 
     _LOGGER.info("Adding %d sensor entities", len(entities))
@@ -218,8 +348,10 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         state = shadow.get("state", {}).get("reported", {})
         key = self.entity_description.key
 
+        if key in SHADOW_FIELDS:
+            self._attr_native_value = state.get(SHADOW_FIELDS[key])
         # Operational sensors from device shadow
-        if key == "faucet_state":
+        elif key == "faucet_state":
             # Use device state directly
             self._attr_native_value = state.get("state", "idle")
         elif key == "last_dispense_volume":
@@ -244,9 +376,11 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "temperature":
             self._attr_native_value = state.get("temperature")
         elif key == "api_status":
-            # Use actual API values for connected status from shadow
-            connected = state.get("connected", False)
-            if connected:
+            # The shadow's `connected` flag can read False while the device is
+            # streaming updates, so report whether we can reach Moen instead.
+            if self.coordinator.realtime_connected or (
+                self.coordinator.last_update_success
+            ):
                 self._attr_native_value = "Connected"
             else:
                 self._attr_native_value = "Disconnected"
@@ -262,12 +396,11 @@ class MoenSensor(CoordinatorEntity, SensorEntity):
         elif key == "wifi_rssi":
             self._attr_native_value = state.get("wifiRssi")
         elif key == "wifi_connected":
-            # Check both WiFi signal presence and cloud connectivity
-            # Device is considered connected if it has WiFi signal AND can reach Moen servers
-            connected = state.get("connected", False)
+            # The faucet reports an RSSI whenever it is on Wi-Fi; the shadow
+            # `connected` flag is unreliable (see api_status).
             wifi_rssi = state.get("wifiRssi")
             self._attr_native_value = (
-                "Connected" if connected and wifi_rssi is not None else "Disconnected"
+                "Connected" if wifi_rssi is not None else "Disconnected"
             )
         elif key == "battery_percentage":
             self._attr_native_value = state.get("batteryPercentage")

@@ -106,7 +106,7 @@ class TestManifest:
         assert "requirements" in manifest
         assert isinstance(manifest["requirements"], list)
         # requests is provided by Home Assistant and must not be listed
-        assert manifest["requirements"] == []
+        assert manifest["requirements"] == ["awsiotsdk==1.31.0"]
 
 
 class TestHACSManifest:

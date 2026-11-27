@@ -8,11 +8,12 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .api import MoenAPI
+from .const import CONF_ENABLE_REALTIME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,6 +82,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain="moen_smart_water"):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OptionsFlowHandler:
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler()
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -109,3 +118,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain="moen_smart_water"):
     async def async_step_import(self, import_info: dict[str, Any]) -> FlowResult:
         """Handle import from configuration.yaml."""
         return await self.async_step_user(import_info)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Moen Smart Water options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current = self.config_entry.options.get(CONF_ENABLE_REALTIME, True)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {vol.Optional(CONF_ENABLE_REALTIME, default=current): bool}
+            ),
+        )
