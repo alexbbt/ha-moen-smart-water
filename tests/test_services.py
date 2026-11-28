@@ -133,6 +133,26 @@ class TestServiceSchemas:
         assert result["device_id"] == "test_device"
         assert result["default_flow_rate"] == 75
 
+    def test_dispense_volume_purge_wait(self) -> None:
+        """purge and wait are optional booleans."""
+        result = DISPENSE_VOLUME_SERVICE_SCHEMA(
+            {"device_id": "test", "volume_ml": 250, "purge": True, "wait": "true"}
+        )
+        assert result["purge"] is True
+        assert result["wait"] is True
+
+        result = DISPENSE_VOLUME_SERVICE_SCHEMA({"device_id": "test", "volume_ml": 250})
+        assert "purge" not in result
+        assert "wait" not in result
+
+        try:
+            DISPENSE_VOLUME_SERVICE_SCHEMA(
+                {"device_id": "test", "volume_ml": 250, "purge": "sometimes"}
+            )
+            raise AssertionError("Should have raised error for a non-boolean purge")
+        except vol.Invalid:
+            pass
+
     def test_dispense_volume_schema_validation(self) -> None:
         """Test that dispense volume schema validates ranges."""
         # Test volume_ml is required

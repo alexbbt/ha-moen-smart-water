@@ -170,6 +170,8 @@ data:
   volume_ml: 500       # Required: 50-2000ml
   temperature: 25      # Optional: "coldest", "hottest", "equal", or numeric °C
   timeout: 120         # Optional: 10-300s (reserved for future use)
+  purge: true          # Optional: run to temperature first (state "purging")
+  wait: true           # Optional: then wait for a wave to pour (state "purged")
 
 # Stop water flow
 action: moen_smart_water.stop_water

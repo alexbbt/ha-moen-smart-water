@@ -49,10 +49,22 @@ dispense_volume:
           unit_of_measurement: ml
     temperature:
       name: Temperature
-      description: Water temperature (optional - can be "coldest", "equal" (50/50 mix), "hottest", or numeric °C). Temperature may not prewarm with dispense command.
+      description: Water temperature (optional - can be "coldest", "equal" (50/50 mix), "hottest", or numeric °C). Turn on Purge to reach the temperature before the pour starts.
       required: false
       selector:
         text:
+    purge:
+      name: Purge to temperature
+      description: Run water into the sink until it reaches the temperature, then dispense (what the Moen app does).
+      required: false
+      selector:
+        boolean:
+    wait:
+      name: Wait for wave
+      description: With Purge, stop at temperature and wait for a hand wave before pouring. The faucet gives up after its dispense-activate timeout.
+      required: false
+      selector:
+        boolean:
     timeout:
       name: Timeout (seconds)
       description: Maximum time to dispense water in seconds (optional, reserved for future use)
