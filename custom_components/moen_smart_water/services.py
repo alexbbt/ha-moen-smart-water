@@ -51,6 +51,8 @@ DISPENSE_VOLUME_SERVICE_SCHEMA = vol.Schema(
             cv.string, vol.All(float, vol.Range(min=0, max=100))
         ),
         vol.Optional("timeout"): vol.All(int, vol.Range(min=10, max=300)),
+        vol.Optional("purge"): cv.boolean,
+        vol.Optional("wait"): cv.boolean,
     }
 )
 
@@ -198,6 +200,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 temperature,
                 flow_rate,
                 timeout,
+                call.data.get("purge"),
+                call.data.get("wait"),
             )
 
             # Build log message with optional parameters

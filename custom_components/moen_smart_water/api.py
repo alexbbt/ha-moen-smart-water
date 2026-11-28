@@ -626,6 +626,8 @@ class MoenAPI:
         temperature: str | float | None = None,
         flow_rate: int | None = None,
         timeout: int = 120,
+        purge: bool | None = None,
+        wait: bool | None = None,
     ) -> dict[str, Any]:
         """Dispense a specific volume of water with optional temperature and flow rate.
 
@@ -644,6 +646,11 @@ class MoenAPI:
             temperature: Optional temperature (e.g., "coldest", "hottest", "equal", or numeric °C)
             flow_rate: Optional flow rate percentage (0-100)
             timeout: Timeout in seconds (currently not used by API, reserved for future)
+            purge: Optional. True runs water into the sink until it reaches the
+                temperature before dispensing (the faucet reports "purging").
+            wait: Optional. With purge, True pauses at temperature (the faucet
+                reports "purged") until a hand wave starts the pour. These are the
+                flags the Moen app sends with its own dispense command.
         """
         # Handle temperature parameter
         # Note: "warm" is not a valid API value for dispense command
@@ -694,6 +701,11 @@ class MoenAPI:
         if flow_rate is not None:
             payload_data["flowRate"] = flow_rate
             _LOGGER.debug("Setting flow rate: %d%%", flow_rate)
+
+        if purge is not None:
+            payload_data["purge"] = purge
+        if wait is not None:
+            payload_data["wait"] = wait
 
         _LOGGER.debug("Dispense payload: %s", json.dumps(payload_data, indent=2))
         result = self.update_device_shadow(client_id, payload_data)

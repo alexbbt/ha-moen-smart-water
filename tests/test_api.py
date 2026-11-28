@@ -82,3 +82,29 @@ class TestMoenAPIInitialization:
         assert hasattr(api, "set_coldest")
         assert hasattr(api, "set_hottest")
         assert hasattr(api, "set_warm")
+
+
+class TestDispensePayload:
+    """The dispense command payload."""
+
+    def _sent(self, **kwargs):
+        from unittest.mock import patch
+
+        api = MoenAPI("test@example.com", "password")
+        with patch.object(api, "update_device_shadow", return_value={}) as update:
+            api.dispense_water("123", 250, 35.0, **kwargs)
+        return update.call_args[0][1]
+
+    def test_purge_and_wait_are_sent(self) -> None:
+        """purge/wait go into the payload when given."""
+        payload = self._sent(purge=True, wait=True)
+        assert payload["command"] == "dispense"
+        assert payload["volume"] == 250000
+        assert payload["purge"] is True
+        assert payload["wait"] is True
+
+    def test_purge_and_wait_left_out_by_default(self) -> None:
+        """Without them the payload is unchanged."""
+        payload = self._sent()
+        assert "purge" not in payload
+        assert "wait" not in payload
